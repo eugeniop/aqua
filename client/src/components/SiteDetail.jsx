@@ -1,8 +1,17 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import TankCard from './TankCard.jsx';
 import FlowmeterCard from './FlowmeterCard.jsx';
 import WellCard from './WellCard.jsx';
+import Modal from './Modal.jsx';
 import './SiteDetail.css';
+
+const defaultTimestamp = () => new Date().toISOString().slice(0, 16);
+
+const typeLabels = {
+  well: 'Well',
+  tank: 'Tank',
+  flowmeter: 'Flowmeter'
+};
 
 export default function SiteDetail({
   site,
@@ -14,17 +23,47 @@ export default function SiteDetail({
   onRecordFlowmeter,
   onRecordWell
 }) {
-  const [wellForm, setWellForm] = useState({ name: '', location: '' });
-  const [tankForm, setTankForm] = useState({ name: '', capacity: '' });
-  const [flowmeterForm, setFlowmeterForm] = useState({ name: '', location: '' });
-  const [errors, setErrors] = useState({});
+  const [createModal, setCreateModal] = useState(null);
+  const [createForm, setCreateForm] = useState({});
+  const [createError, setCreateError] = useState('');
+  const [createSubmitting, setCreateSubmitting] = useState(false);
+
+  const [recordModal, setRecordModal] = useState(null);
+  const [recordForm, setRecordForm] = useState({});
+  const [recordError, setRecordError] = useState('');
+  const [recordSubmitting, setRecordSubmitting] = useState(false);
 
   useEffect(() => {
-    setWellForm({ name: '', location: '' });
-    setTankForm({ name: '', capacity: '' });
-    setFlowmeterForm({ name: '', location: '' });
-    setErrors({});
+    setCreateModal(null);
+    setRecordModal(null);
+    setCreateForm({});
+    setRecordForm({});
+    setCreateError('');
+    setRecordError('');
+    setCreateSubmitting(false);
+    setRecordSubmitting(false);
   }, [site?.id]);
+
+  const features = useMemo(() => {
+    if (!site) {
+      return [];
+    }
+
+    const grouped = [
+      ...site.wells.map((well) => ({ type: 'well', data: well })),
+      ...site.tanks.map((tank) => ({ type: 'tank', data: tank })),
+      ...site.flowmeters.map((flowmeter) => ({ type: 'flowmeter', data: flowmeter }))
+    ];
+
+    const order = { well: 0, tank: 1, flowmeter: 2 };
+
+    return grouped.sort((a, b) => {
+      if (order[a.type] !== order[b.type]) {
+        return order[a.type] - order[b.type];
+      }
+      return a.data.name.localeCompare(b.data.name);
+    });
+  }, [site]);
 
   if (!site) {
     return (
@@ -35,52 +74,219 @@ export default function SiteDetail({
     );
   }
 
-  const submit = async (type, payload) => {
-    try {
-      if (type === 'well') {
-        await onAddWell(site.id, payload);
-        setWellForm({ name: '', location: '' });
-      } else if (type === 'tank') {
-        await onAddTank(site.id, payload);
-        setTankForm({ name: '', capacity: '' });
-      } else if (type === 'flowmeter') {
-        await onAddFlowmeter(site.id, payload);
-        setFlowmeterForm({ name: '', location: '' });
-      }
-      setErrors((prev) => ({ ...prev, [type]: '' }));
-    } catch (error) {
-      setErrors((prev) => ({ ...prev, [type]: error.message || 'Unable to save.' }));
+  const openCreateModal = (type) => {
+    setCreateModal(type);
+    setCreateError('');
+    if (type === 'well') {
+      setCreateForm({ name: '', location: '' });
+    } else if (type === 'tank') {
+      setCreateForm({ name: '', capacity: '' });
+    } else if (type === 'flowmeter') {
+      setCreateForm({ name: '', location: '' });
     }
   };
 
-  const handleSubmit = (event, type) => {
-    event.preventDefault();
+  const openRecordModal = (type, feature) => {
+    setRecordModal({ type, feature });
+    setRecordError('');
     if (type === 'well') {
-      if (!wellForm.name.trim()) {
-        setErrors((prev) => ({ ...prev, well: 'Well name is required.' }));
+      setRecordForm({ depth: '', comment: '', recordedAt: defaultTimestamp() });
+    } else if (type === 'tank') {
+      setRecordForm({ level: '', comment: '', recordedAt: defaultTimestamp() });
+    } else if (type === 'flowmeter') {
+      setRecordForm({
+        instantaneousFlow: '',
+        totalizedVolume: '',
+        comment: '',
+        recordedAt: defaultTimestamp()
+      });
+    }
+  };
+
+  const closeCreateModal = () => {
+    if (createSubmitting) {
+      return;
+    }
+    setCreateModal(null);
+    setCreateError('');
+    setCreateForm({});
+  };
+
+  const closeRecordModal = () => {
+    if (recordSubmitting) {
+      return;
+    }
+    setRecordModal(null);
+    setRecordError('');
+    setRecordForm({});
+  };
+
+  const handleCreateChange = (field) => (event) => {
+    setCreateForm((prev) => ({ ...prev, [field]: event.target.value }));
+  };
+
+  const handleRecordChange = (field) => (event) => {
+    setRecordForm((prev) => ({ ...prev, [field]: event.target.value }));
+  };
+
+  const handleCreateSubmit = async (event) => {
+    event.preventDefault();
+    if (!createModal) {
+      return;
+    }
+
+    if (createModal === 'well') {
+      if (!createForm.name?.trim()) {
+        setCreateError('Well name is required.');
         return;
       }
-      submit('well', { name: wellForm.name.trim(), location: wellForm.location.trim() || undefined });
+      try {
+        setCreateSubmitting(true);
+        await onAddWell(site.id, {
+          name: createForm.name.trim(),
+          location: createForm.location?.trim() || undefined
+        });
+        setCreateModal(null);
+        setCreateError('');
+        setCreateForm({});
+        return;
+      } catch (error) {
+        setCreateError(error.message || 'Unable to save well.');
+      } finally {
+        setCreateSubmitting(false);
+      }
     }
+
+    if (createModal === 'tank') {
+      const capacityValue = Number(createForm.capacity);
+      if (!createForm.name?.trim() || Number.isNaN(capacityValue)) {
+        setCreateError('Tank name and capacity are required.');
+        return;
+      }
+
+      try {
+        setCreateSubmitting(true);
+        await onAddTank(site.id, {
+          name: createForm.name.trim(),
+          capacity: capacityValue
+        });
+        setCreateModal(null);
+        setCreateError('');
+        setCreateForm({});
+        return;
+      } catch (error) {
+        setCreateError(error.message || 'Unable to save tank.');
+      } finally {
+        setCreateSubmitting(false);
+      }
+    }
+
+    if (createModal === 'flowmeter') {
+      if (!createForm.name?.trim()) {
+        setCreateError('Flowmeter name is required.');
+        return;
+      }
+
+      try {
+        setCreateSubmitting(true);
+        await onAddFlowmeter(site.id, {
+          name: createForm.name.trim(),
+          location: createForm.location?.trim() || undefined
+        });
+        setCreateModal(null);
+        setCreateError('');
+        setCreateForm({});
+        return;
+      } catch (error) {
+        setCreateError(error.message || 'Unable to save flowmeter.');
+      } finally {
+        setCreateSubmitting(false);
+      }
+    }
+  };
+
+  const handleRecordSubmit = async (event) => {
+    event.preventDefault();
+    if (!recordModal) {
+      return;
+    }
+
+    const { type, feature } = recordModal;
+
+    if (type === 'well') {
+      if (!recordForm.depth) {
+        setRecordError('Depth is required.');
+        return;
+      }
+
+      try {
+        setRecordSubmitting(true);
+        await onRecordWell(feature.id, {
+          depth: Number(recordForm.depth),
+          comment: recordForm.comment?.trim() || undefined,
+          recordedAt: recordForm.recordedAt ? new Date(recordForm.recordedAt).toISOString() : undefined,
+          operator
+        });
+        setRecordModal(null);
+        setRecordError('');
+        setRecordForm({});
+        return;
+      } catch (error) {
+        setRecordError(error.message || 'Unable to save measurement.');
+      } finally {
+        setRecordSubmitting(false);
+      }
+    }
+
     if (type === 'tank') {
-      if (!tankForm.name.trim() || !tankForm.capacity) {
-        setErrors((prev) => ({ ...prev, tank: 'Name and capacity are required.' }));
+      if (!recordForm.level) {
+        setRecordError('Level is required.');
         return;
       }
-      submit('tank', {
-        name: tankForm.name.trim(),
-        capacity: Number(tankForm.capacity)
-      });
+
+      try {
+        setRecordSubmitting(true);
+        await onRecordTank(feature.id, {
+          level: Number(recordForm.level),
+          comment: recordForm.comment?.trim() || undefined,
+          recordedAt: recordForm.recordedAt ? new Date(recordForm.recordedAt).toISOString() : undefined,
+          operator
+        });
+        setRecordModal(null);
+        setRecordError('');
+        setRecordForm({});
+        return;
+      } catch (error) {
+        setRecordError(error.message || 'Unable to save reading.');
+      } finally {
+        setRecordSubmitting(false);
+      }
     }
+
     if (type === 'flowmeter') {
-      if (!flowmeterForm.name.trim()) {
-        setErrors((prev) => ({ ...prev, flowmeter: 'Flowmeter name is required.' }));
+      if (!recordForm.instantaneousFlow || !recordForm.totalizedVolume) {
+        setRecordError('Both flow values are required.');
         return;
       }
-      submit('flowmeter', {
-        name: flowmeterForm.name.trim(),
-        location: flowmeterForm.location.trim() || undefined
-      });
+
+      try {
+        setRecordSubmitting(true);
+        await onRecordFlowmeter(feature.id, {
+          instantaneousFlow: Number(recordForm.instantaneousFlow),
+          totalizedVolume: Number(recordForm.totalizedVolume),
+          comment: recordForm.comment?.trim() || undefined,
+          recordedAt: recordForm.recordedAt ? new Date(recordForm.recordedAt).toISOString() : undefined,
+          operator
+        });
+        setRecordModal(null);
+        setRecordError('');
+        setRecordForm({});
+        return;
+      } catch (error) {
+        setRecordError(error.message || 'Unable to save reading.');
+      } finally {
+        setRecordSubmitting(false);
+      }
     }
   };
 
@@ -96,103 +302,219 @@ export default function SiteDetail({
         </div>
       </header>
 
-      <section className="asset-section">
-        <h2>Wells</h2>
-        <form className="inline-form" onSubmit={(event) => handleSubmit(event, 'well')}>
-          <input
-            type="text"
-            placeholder="Well name"
-            value={wellForm.name}
-            onChange={(event) => setWellForm((prev) => ({ ...prev, name: event.target.value }))}
-          />
-          <input
-            type="text"
-            placeholder="Location (optional)"
-            value={wellForm.location}
-            onChange={(event) => setWellForm((prev) => ({ ...prev, location: event.target.value }))}
-          />
-          <button type="submit">Add well</button>
-        </form>
-        {errors.well && <p className="error">{errors.well}</p>}
-        <div className="asset-grid">
-          {site.wells.length === 0 ? (
-            <p className="empty">No wells yet.</p>
-          ) : (
-            site.wells.map((well) => (
-              <WellCard key={well.id} well={well} operator={operator} onRecord={onRecordWell} />
-            ))
-          )}
+      <section className="site-actions">
+        <h2>Quick actions</h2>
+        <p className="actions-help">Add new assets directly from here.</p>
+        <div className="site-actions-buttons">
+          <button type="button" onClick={() => openCreateModal('well')}>
+            Add well
+          </button>
+          <button type="button" onClick={() => openCreateModal('tank')}>
+            Add tank
+          </button>
+          <button type="button" onClick={() => openCreateModal('flowmeter')}>
+            Add flowmeter
+          </button>
         </div>
       </section>
 
-      <section className="asset-section">
-        <h2>Tanks</h2>
-        <form className="inline-form" onSubmit={(event) => handleSubmit(event, 'tank')}>
-          <input
-            type="text"
-            placeholder="Tank name"
-            value={tankForm.name}
-            onChange={(event) => setTankForm((prev) => ({ ...prev, name: event.target.value }))}
-          />
-          <input
-            type="number"
-            min="0"
-            step="1"
-            placeholder="Capacity (L)"
-            value={tankForm.capacity}
-            onChange={(event) => setTankForm((prev) => ({ ...prev, capacity: event.target.value }))}
-          />
-          <button type="submit">Add tank</button>
-        </form>
-        {errors.tank && <p className="error">{errors.tank}</p>}
-        <div className="asset-grid">
-          {site.tanks.length === 0 ? (
-            <p className="empty">No tanks yet.</p>
-          ) : (
-            site.tanks.map((tank) => (
-              <TankCard key={tank.id} tank={tank} operator={operator} onRecord={onRecordTank} />
-            ))
-          )}
-        </div>
+      <section className="feature-summary">
+        <h2>Feature summary</h2>
+        {features.length === 0 ? (
+          <p className="empty">No features recorded for this site yet.</p>
+        ) : (
+          <div className="asset-grid">
+            {features.map((feature) => {
+              if (feature.type === 'well') {
+                return (
+                  <WellCard
+                    key={`well-${feature.data.id}`}
+                    well={feature.data}
+                    onAddMeasurement={(well) => openRecordModal('well', well)}
+                    onAddWell={() => openCreateModal('well')}
+                  />
+                );
+              }
+              if (feature.type === 'tank') {
+                return (
+                  <TankCard
+                    key={`tank-${feature.data.id}`}
+                    tank={feature.data}
+                    onAddReading={(tank) => openRecordModal('tank', tank)}
+                    onAddTank={() => openCreateModal('tank')}
+                  />
+                );
+              }
+              return (
+                <FlowmeterCard
+                  key={`flowmeter-${feature.data.id}`}
+                  flowmeter={feature.data}
+                  onAddReading={(flowmeter) => openRecordModal('flowmeter', flowmeter)}
+                  onAddFlowmeter={() => openCreateModal('flowmeter')}
+                />
+              );
+            })}
+          </div>
+        )}
       </section>
 
-      <section className="asset-section">
-        <h2>Flowmeters</h2>
-        <form className="inline-form" onSubmit={(event) => handleSubmit(event, 'flowmeter')}>
-          <input
-            type="text"
-            placeholder="Flowmeter name"
-            value={flowmeterForm.name}
-            onChange={(event) =>
-              setFlowmeterForm((prev) => ({ ...prev, name: event.target.value }))
-            }
-          />
-          <input
-            type="text"
-            placeholder="Location (optional)"
-            value={flowmeterForm.location}
-            onChange={(event) =>
-              setFlowmeterForm((prev) => ({ ...prev, location: event.target.value }))
-            }
-          />
-          <button type="submit">Add flowmeter</button>
-        </form>
-        {errors.flowmeter && <p className="error">{errors.flowmeter}</p>}
-        <div className="asset-grid">
-          {site.flowmeters.length === 0 ? (
-            <p className="empty">No flowmeters yet.</p>
-          ) : (
-            site.flowmeters.map((flowmeter) => (
-              <FlowmeterCard
-                key={flowmeter.id}
-                flowmeter={flowmeter}
-                operator={operator}
-                onRecord={onRecordFlowmeter}
+      {createModal && (
+        <Modal
+          title={`Add ${typeLabels[createModal]}`}
+          onClose={closeCreateModal}
+          dismissDisabled={createSubmitting}
+          actions={
+            <>
+              <button
+                type="button"
+                className="secondary"
+                onClick={closeCreateModal}
+                disabled={createSubmitting}
+              >
+                Cancel
+              </button>
+              <button type="submit" form="create-feature-form" disabled={createSubmitting}>
+                {createSubmitting ? 'Saving…' : 'Save'}
+              </button>
+            </>
+          }
+        >
+          <form id="create-feature-form" className="modal-form" onSubmit={handleCreateSubmit}>
+            <label>
+              Name
+              <input
+                type="text"
+                value={createForm.name}
+                onChange={handleCreateChange('name')}
+                required
               />
-            ))
-          )}
-        </div>
-      </section>
+            </label>
+            {createModal === 'tank' && (
+              <label>
+                Capacity (L)
+                <input
+                  type="number"
+                  min="0"
+                  step="1"
+                  value={createForm.capacity}
+                  onChange={handleCreateChange('capacity')}
+                  required
+                />
+              </label>
+            )}
+            {createModal !== 'tank' && (
+              <label>
+                Location (optional)
+                <input
+                  type="text"
+                  value={createForm.location}
+                  onChange={handleCreateChange('location')}
+                />
+              </label>
+            )}
+            {createError && <p className="form-error">{createError}</p>}
+          </form>
+        </Modal>
+      )}
+
+      {recordModal && (
+        <Modal
+          title={`Add ${typeLabels[recordModal.type]} ${
+            recordModal.type === 'well' ? 'measurement' : 'reading'
+          }`}
+          onClose={closeRecordModal}
+          dismissDisabled={recordSubmitting}
+          actions={
+            <>
+              <button
+                type="button"
+                className="secondary"
+                onClick={closeRecordModal}
+                disabled={recordSubmitting}
+              >
+                Cancel
+              </button>
+              <button type="submit" form="record-feature-form" disabled={recordSubmitting}>
+                {recordSubmitting ? 'Saving…' : 'Save'}
+              </button>
+            </>
+          }
+        >
+          <form id="record-feature-form" className="modal-form" onSubmit={handleRecordSubmit}>
+            {recordModal.type === 'well' && (
+              <label>
+                Depth to water (m)
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={recordForm.depth}
+                  onChange={handleRecordChange('depth')}
+                  required
+                />
+              </label>
+            )}
+            {recordModal.type === 'tank' && (
+              <label>
+                Level (L)
+                <input
+                  type="number"
+                  min="0"
+                  step="1"
+                  value={recordForm.level}
+                  onChange={handleRecordChange('level')}
+                  required
+                />
+              </label>
+            )}
+            {recordModal.type === 'flowmeter' && (
+              <>
+                <label>
+                  Instantaneous flow (L/min)
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={recordForm.instantaneousFlow}
+                    onChange={handleRecordChange('instantaneousFlow')}
+                    required
+                  />
+                </label>
+                <label>
+                  Totalized volume (L)
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={recordForm.totalizedVolume}
+                    onChange={handleRecordChange('totalizedVolume')}
+                    required
+                  />
+                </label>
+              </>
+            )}
+            <label>
+              Date &amp; time
+              <input
+                type="datetime-local"
+                value={recordForm.recordedAt}
+                onChange={handleRecordChange('recordedAt')}
+              />
+            </label>
+            <label>
+              Comment (optional)
+              <textarea
+                rows="2"
+                value={recordForm.comment}
+                onChange={handleRecordChange('comment')}
+                placeholder="Add any notes"
+              />
+            </label>
+            <p className="operator-reminder">Logged in as {operator}</p>
+            {recordError && <p className="form-error">{recordError}</p>}
+          </form>
+        </Modal>
+      )}
     </div>
   );
 }

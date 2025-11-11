@@ -1,43 +1,14 @@
-import { useState } from 'react';
 import './AssetCards.css';
 
-const defaultTimestamp = () => new Date().toISOString().slice(0, 16);
 const formatDate = (value) => (value ? new Date(value).toLocaleString() : '—');
 
-export default function WellCard({ well, operator, onRecord }) {
-  const [form, setForm] = useState({ depth: '', comment: '', recordedAt: defaultTimestamp() });
-  const [message, setMessage] = useState(null);
-
-  const handleChange = (field) => (event) => {
-    setForm((prev) => ({ ...prev, [field]: event.target.value }));
-  };
-
-  const submit = async (event) => {
-    event.preventDefault();
-    if (!form.depth) {
-      setMessage({ type: 'error', text: 'Depth is required.' });
-      return;
-    }
-
-    try {
-      await onRecord(well.id, {
-        depth: Number(form.depth),
-        comment: form.comment.trim() || undefined,
-        recordedAt: form.recordedAt ? new Date(form.recordedAt).toISOString() : undefined,
-        operator
-      });
-      setMessage({ type: 'success', text: 'Measurement saved.' });
-      setForm({ depth: '', comment: '', recordedAt: defaultTimestamp() });
-    } catch (error) {
-      setMessage({ type: 'error', text: error.message || 'Unable to save measurement.' });
-    }
-  };
-
+export default function WellCard({ well, onAddMeasurement, onAddWell }) {
   return (
     <div className="asset-card">
       <header>
         <div>
           <h3>{well.name}</h3>
+          <p className="asset-type">Well</p>
           {well.location && <p className="meta">Location: {well.location}</p>}
         </div>
       </header>
@@ -54,27 +25,14 @@ export default function WellCard({ well, operator, onRecord }) {
           <p className="empty">No measurements yet.</p>
         )}
       </section>
-      <form onSubmit={submit} className="entry-form">
-        <h4>Log depth to water</h4>
-        <label>
-          Depth (m)
-          <input type="number" min="0" step="0.01" value={form.depth} onChange={handleChange('depth')} />
-        </label>
-        <label>
-          Date &amp; time
-          <input
-            type="datetime-local"
-            value={form.recordedAt}
-            onChange={handleChange('recordedAt')}
-          />
-        </label>
-        <label>
-          Comment
-          <textarea rows="2" value={form.comment} onChange={handleChange('comment')} placeholder="Optional notes" />
-        </label>
-        {message && <p className={`status ${message.type}`}>{message.text}</p>}
-        <button type="submit">Save measurement</button>
-      </form>
+      <div className="card-actions">
+        <button type="button" onClick={() => onAddMeasurement(well)}>
+          Add measurement
+        </button>
+        <button type="button" className="secondary" onClick={onAddWell}>
+          Add well
+        </button>
+      </div>
     </div>
   );
 }
