@@ -3,6 +3,7 @@ import TankCard from './TankCard.jsx';
 import FlowmeterCard from './FlowmeterCard.jsx';
 import WellCard from './WellCard.jsx';
 import Modal from './Modal.jsx';
+import { getTankReadings, getFlowmeterReadings, getWellMeasurements } from '../api.js';
 import './SiteDetail.css';
 
 const defaultTimestamp = () => new Date().toISOString().slice(0, 16);
@@ -11,6 +12,117 @@ const typeLabels = {
   well: 'Well',
   tank: 'Tank',
   flowmeter: 'Flowmeter'
+};
+
+const HISTORY_PAGE_SIZE = 5;
+
+const defaultVisibleTypes = {
+  well: true,
+  tank: true,
+  flowmeter: true
+};
+
+const historyFetchers = {
+  well: getWellMeasurements,
+  tank: getTankReadings,
+  flowmeter: getFlowmeterReadings
+};
+
+const historyTypeLabels = {
+  well: 'Measurements',
+  tank: 'Readings',
+  flowmeter: 'Readings'
+};
+
+const filterLabels = {
+  well: 'Wells',
+  tank: 'Tanks',
+  flowmeter: 'Flowmeters'
+};
+
+const formatDateTime = (value) => (value ? new Date(value).toLocaleString() : '—');
+
+const historyColumns = {
+  well: [
+    {
+      key: 'depth',
+      label: 'Depth (m)',
+      render: (item) => (item.depth == null ? '—' : Number(item.depth).toFixed(2))
+    },
+    {
+      key: 'recordedAt',
+      label: 'Recorded at',
+      render: (item) => formatDateTime(item.recordedAt)
+    },
+    { key: 'operator', label: 'Operator', render: (item) => item.operator || '—' },
+    {
+      key: 'comment',
+      label: 'Comment',
+      render: (item) => (item.comment ? item.comment : '—')
+    }
+  ],
+  tank: [
+    {
+      key: 'level',
+      label: 'Level (L)',
+      render: (item) =>
+        item.level == null ? '—' : Number(item.level).toLocaleString(undefined, { maximumFractionDigits: 2 })
+    },
+    {
+      key: 'recordedAt',
+      label: 'Recorded at',
+      render: (item) => formatDateTime(item.recordedAt)
+    },
+    { key: 'operator', label: 'Operator', render: (item) => item.operator || '—' },
+    {
+      key: 'comment',
+      label: 'Comment',
+      render: (item) => (item.comment ? item.comment : '—')
+    }
+  ],
+  flowmeter: [
+    {
+      key: 'instantaneousFlow',
+      label: 'Instantaneous (L/min)',
+      render: (item) =>
+        item.instantaneousFlow == null
+          ? '—'
+          : Number(item.instantaneousFlow).toLocaleString(undefined, {
+              minimumFractionDigits: 2,
+              maximumFractionDigits: 2
+            })
+    },
+    {
+      key: 'totalizedVolume',
+      label: 'Totalized volume (L)',
+      render: (item) =>
+        item.totalizedVolume == null
+          ? '—'
+          : Number(item.totalizedVolume).toLocaleString(undefined, {
+              minimumFractionDigits: 2,
+              maximumFractionDigits: 2
+            })
+    },
+    {
+      key: 'recordedAt',
+      label: 'Recorded at',
+      render: (item) => formatDateTime(item.recordedAt)
+    },
+    { key: 'operator', label: 'Operator', render: (item) => item.operator || '—' },
+    {
+      key: 'comment',
+      label: 'Comment',
+      render: (item) => (item.comment ? item.comment : '—')
+    }
+  ]
+};
+
+const initialHistoryState = {
+  loading: false,
+  error: '',
+  items: [],
+  total: 0,
+  limit: HISTORY_PAGE_SIZE
 };
 
 export default function SiteDetail({
@@ -33,6 +145,11 @@ export default function SiteDetail({
   const [recordError, setRecordError] = useState('');
   const [recordSubmitting, setRecordSubmitting] = useState(false);
 
+  const [visibleTypes, setVisibleTypes] = useState(() => ({ ...defaultVisibleTypes }));
+  const [historyModal, setHistoryModal] = useState(null);
+  const [historyPage, setHistoryPage] = useState(1);
+  const [historyState, setHistoryState] = useState(() => ({ ...initialHistoryState }));
+
   useEffect(() => {
     setCreateModal(null);
     setRecordModal(null);
@@ -42,6 +159,10 @@ export default function SiteDetail({
     setRecordError('');
     setCreateSubmitting(false);
     setRecordSubmitting(false);
+    setVisibleTypes({ ...defaultVisibleTypes });
+    setHistoryModal(null);
+    setHistoryPage(1);
+    setHistoryState({ ...initialHistoryState });
   }, [site?.id]);
 
   const features = useMemo(() => {
@@ -64,6 +185,99 @@ export default function SiteDetail({
       return a.data.name.localeCompare(b.data.name);
     });
   }, [site]);
+
+  const filteredFeatures = useMemo(
+    () => features.filter((feature) => visibleTypes[feature.type]),
+    [features, visibleTypes]
+  );
+
+  useEffect(() => {
+    if (!historyModal) {
+      return;
+    }
+
+    let cancelled = false;
+
+    const loadHistory = async () => {
+      setHistoryState((prev) => ({ ...prev, loading: true, error: '' }));
+      try {
+        const fetchHistory = historyFetchers[historyModal.type];
+        if (!fetchHistory) {
+          throw new Error('Unsupported feature type');
+        }
+        const result = await fetchHistory(historyModal.feature.id, {
+          page: historyPage,
+          limit: HISTORY_PAGE_SIZE
+        });
+        if (cancelled) {
+          return;
+        }
+        setHistoryState({
+          loading: false,
+          error: '',
+          items: result.items ?? [],
+          total: result.total ?? 0,
+          limit: result.limit ?? HISTORY_PAGE_SIZE
+        });
+      } catch (error) {
+        if (cancelled) {
+          return;
+        }
+        setHistoryState((prev) => ({
+          ...prev,
+          loading: false,
+          error: error.message || 'Unable to load history'
+        }));
+      }
+    };
+
+    loadHistory();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [historyModal, historyPage]);
+
+  const toggleType = (type) => {
+    setVisibleTypes((prev) => ({ ...prev, [type]: !prev[type] }));
+  };
+
+  const openHistoryModal = (type, feature) => {
+    setHistoryPage(1);
+    setHistoryModal({ type, feature });
+  };
+
+  const closeHistoryModal = () => {
+    setHistoryModal(null);
+    setHistoryPage(1);
+    setHistoryState({ ...initialHistoryState });
+  };
+
+  const handleHistoryPrevious = () => {
+    setHistoryPage((prev) => Math.max(1, prev - 1));
+  };
+
+  const handleHistoryNext = () => {
+    setHistoryPage((prev) => prev + 1);
+  };
+
+  const totalHistoryPages = historyModal
+    ? Math.max(1, Math.ceil((historyState.total || 0) / (historyState.limit || HISTORY_PAGE_SIZE)))
+    : 1;
+  const historyHasPrevious = historyModal ? historyPage > 1 : false;
+  const historyHasNext = historyModal ? historyPage < totalHistoryPages : false;
+  const historyRangeStart =
+    historyModal && historyState.total > 0
+      ? (historyPage - 1) * historyState.limit + 1
+      : 0;
+  const historyRangeEnd =
+    historyModal && historyState.total > 0
+      ? Math.min(
+          (historyPage - 1) * historyState.limit + historyState.items.length,
+          historyState.total
+        )
+      : 0;
+  const historySummaryLabel = historyModal ? historyTypeLabels[historyModal.type].toLowerCase() : '';
 
   if (!site) {
     return (
@@ -320,11 +534,31 @@ export default function SiteDetail({
 
       <section className="feature-summary">
         <h2>Feature summary</h2>
+        {features.length > 0 && (
+          <div className="feature-filters" role="group" aria-label="Filter feature cards by type">
+            {Object.entries(filterLabels).map(([type, label]) => {
+              const active = visibleTypes[type];
+              return (
+                <button
+                  key={type}
+                  type="button"
+                  className={`filter-button${active ? ' active' : ''}`}
+                  onClick={() => toggleType(type)}
+                  aria-pressed={active}
+                >
+                  {label}
+                </button>
+              );
+            })}
+          </div>
+        )}
         {features.length === 0 ? (
           <p className="empty">No features recorded for this site yet.</p>
+        ) : filteredFeatures.length === 0 ? (
+          <p className="empty">No features match the selected filters.</p>
         ) : (
           <div className="asset-grid">
-            {features.map((feature) => {
+            {filteredFeatures.map((feature) => {
               if (feature.type === 'well') {
                 return (
                   <WellCard
@@ -332,6 +566,7 @@ export default function SiteDetail({
                     well={feature.data}
                     onAddMeasurement={(well) => openRecordModal('well', well)}
                     onAddWell={() => openCreateModal('well')}
+                    onViewHistory={(well) => openHistoryModal('well', well)}
                   />
                 );
               }
@@ -342,6 +577,7 @@ export default function SiteDetail({
                     tank={feature.data}
                     onAddReading={(tank) => openRecordModal('tank', tank)}
                     onAddTank={() => openCreateModal('tank')}
+                    onViewHistory={(tank) => openHistoryModal('tank', tank)}
                   />
                 );
               }
@@ -351,12 +587,78 @@ export default function SiteDetail({
                   flowmeter={feature.data}
                   onAddReading={(flowmeter) => openRecordModal('flowmeter', flowmeter)}
                   onAddFlowmeter={() => openCreateModal('flowmeter')}
+                  onViewHistory={(flowmeter) => openHistoryModal('flowmeter', flowmeter)}
                 />
               );
             })}
           </div>
         )}
       </section>
+
+      {historyModal && (
+        <Modal
+          title={`${typeLabels[historyModal.type]} ${historyTypeLabels[historyModal.type]}`}
+          onClose={closeHistoryModal}
+          actions={
+            <button type="button" className="secondary" onClick={closeHistoryModal}>
+              Close
+            </button>
+          }
+        >
+          {historyState.loading ? (
+            <p className="history-status">Loading history…</p>
+          ) : historyState.error ? (
+            <p className="form-error">{historyState.error}</p>
+          ) : historyState.items.length === 0 ? (
+            <p className="history-empty">No {historySummaryLabel} recorded yet.</p>
+          ) : (
+            <>
+              <div className="history-table-wrapper">
+                <table className="history-table">
+                  <thead>
+                    <tr>
+                      {historyColumns[historyModal.type].map((column) => (
+                        <th key={column.key}>{column.label}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {historyState.items.map((item) => (
+                      <tr key={item.id}>
+                        {historyColumns[historyModal.type].map((column) => (
+                          <td key={column.key}>{column.render(item)}</td>
+                        ))}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <div className="history-pagination">
+                <span>
+                  Showing {historyRangeStart}–{historyRangeEnd} of {historyState.total}
+                </span>
+                <div className="history-pagination-buttons">
+                  <button
+                    type="button"
+                    onClick={handleHistoryPrevious}
+                    disabled={!historyHasPrevious || historyState.loading}
+                    className="secondary"
+                  >
+                    Previous
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleHistoryNext}
+                    disabled={!historyHasNext || historyState.loading}
+                  >
+                    Next
+                  </button>
+                </div>
+              </div>
+            </>
+          )}
+        </Modal>
+      )}
 
       {createModal && (
         <Modal
