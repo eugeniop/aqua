@@ -25,33 +25,6 @@
   font-weight: 600;
 }
 
-.asset-section {
-  display: grid;
-  gap: 1rem;
-}
-
-.inline-form {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-}
-
-.inline-form input {
-  flex: 1 1 180px;
-  border-radius: 8px;
-  border: 1px solid #cbd5f5;
-  padding: 0.5rem 0.6rem;
-}
-
-.inline-form button {
-  border: none;
-  background: #16a34a;
-  color: white;
-  padding: 0.6rem 1rem;
-  border-radius: 8px;
-  font-weight: 600;
-}
-
 .asset-grid {
   display: grid;
   gap: 1rem;
@@ -66,10 +39,82 @@
   padding: 3rem 1.5rem;
 }
 
-.error {
+.site-actions {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.site-actions h2,
+.feature-summary h2 {
+  margin: 0;
+  font-size: 1.2rem;
+}
+
+.actions-help {
+  margin: 0;
+  color: #4b5563;
+  font-size: 0.9rem;
+}
+
+.site-actions-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.site-actions-buttons button {
+  border: none;
+  border-radius: 8px;
+  background: #16a34a;
+  color: white;
+  font-weight: 600;
+  padding: 0.55rem 0.9rem;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.site-actions-buttons button:hover {
+  background: #15803d;
+}
+
+.feature-summary {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.modal-form {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.modal-form label {
+  display: grid;
+  gap: 0.35rem;
+  font-weight: 600;
+}
+
+.modal-form input,
+.modal-form textarea {
+  border: 1px solid #cbd5f5;
+  border-radius: 8px;
+  padding: 0.55rem 0.6rem;
+  font-size: 1rem;
+}
+
+.modal-form textarea {
+  resize: vertical;
+}
+
+.form-error {
+  margin: 0;
   color: #dc2626;
   font-size: 0.85rem;
+}
+
+.operator-reminder {
   margin: 0;
+  font-size: 0.85rem;
+  color: #4b5563;
 }
 
 @media (max-width: 900px) {
