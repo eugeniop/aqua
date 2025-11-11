@@ -2,7 +2,7 @@ import './AssetCards.css';
 
 const formatDate = (value) => (value ? new Date(value).toLocaleString() : '—');
 
-export default function WellCard({ well, onAddMeasurement, onAddWell }) {
+export default function WellCard({ well, onAddMeasurement, onAddWell, onViewHistory }) {
   return (
     <div className="asset-card">
       <header>
@@ -28,6 +28,9 @@ export default function WellCard({ well, onAddMeasurement, onAddWell }) {
       <div className="card-actions">
         <button type="button" onClick={() => onAddMeasurement(well)}>
           Add measurement
+        </button>
+        <button type="button" className="ghost" onClick={() => onViewHistory(well)}>
+          View measurements
         </button>
         <button type="button" className="secondary" onClick={onAddWell}>
           Add well

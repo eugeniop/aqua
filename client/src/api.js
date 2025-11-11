@@ -13,6 +13,18 @@ const handleResponse = async (response) => {
   return data;
 };
 
+const toQueryString = (params = {}) => {
+  const searchParams = new URLSearchParams();
+  Object.entries(params).forEach(([key, value]) => {
+    if (value == null || value === '') {
+      return;
+    }
+    searchParams.append(key, value);
+  });
+  const query = searchParams.toString();
+  return query ? `?${query}` : '';
+};
+
 export const getSites = () => fetch(`${API_ROOT}/sites`).then(handleResponse);
 
 export const createSite = (payload) =>
@@ -65,3 +77,12 @@ export const recordWellMeasurement = (wellId, payload) =>
     headers: jsonHeaders,
     body: JSON.stringify(payload)
   }).then(handleResponse);
+
+export const getTankReadings = (tankId, params) =>
+  fetch(`${API_ROOT}/tanks/${tankId}/readings${toQueryString(params)}`).then(handleResponse);
+
+export const getFlowmeterReadings = (flowmeterId, params) =>
+  fetch(`${API_ROOT}/flowmeters/${flowmeterId}/readings${toQueryString(params)}`).then(handleResponse);
+
+export const getWellMeasurements = (wellId, params) =>
+  fetch(`${API_ROOT}/wells/${wellId}/measurements${toQueryString(params)}`).then(handleResponse);
