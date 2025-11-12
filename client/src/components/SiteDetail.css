@@ -236,6 +236,12 @@
   gap: 1rem;
 }
 
+.history-fullscreen-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
 .history-fullscreen-header h2 {
   margin: 0;
 }
@@ -261,12 +267,82 @@
   background: #111827;
 }
 
+.site-detail button.secondary {
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #1f2937;
+  font-weight: 600;
+  padding: 0.45rem 0.85rem;
+  cursor: pointer;
+  transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+}
+
+.site-detail button.secondary:hover:enabled {
+  background: #f3f4f6;
+}
+
 .history-fullscreen-body {
   flex: 1;
   display: flex;
   flex-direction: column;
   gap: 1.5rem;
   margin-top: 1.5rem;
+}
+
+.history-chart-view {
+  display: grid;
+  gap: 1rem;
+}
+
+.history-chart-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 1rem;
+}
+
+.history-chart-controls label {
+  display: grid;
+  gap: 0.35rem;
+  font-weight: 600;
+}
+
+.history-chart-controls input {
+  border: 1px solid #cbd5f5;
+  border-radius: 8px;
+  padding: 0.4rem 0.5rem;
+  font-size: 0.95rem;
+}
+
+.history-chart-buttons {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.history-chart-buttons button {
+  border: none;
+  border-radius: 8px;
+  background: #2563eb;
+  color: #ffffff;
+  font-weight: 600;
+  padding: 0.5rem 0.9rem;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.history-chart-buttons button:hover:enabled {
+  background: #1d4ed8;
+}
+
+.history-chart-buttons .secondary {
+  border: 1px solid #d1d5db;
+  background: #ffffff;
+  color: #1f2937;
+}
+
+.history-chart-buttons .secondary:hover:enabled {
+  background: #f3f4f6;
 }
 
 .history-fullscreen-body .history-table-wrapper {

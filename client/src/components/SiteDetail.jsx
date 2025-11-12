@@ -3,6 +3,7 @@ import TankCard from './TankCard.jsx';
 import FlowmeterCard from './FlowmeterCard.jsx';
 import WellCard from './WellCard.jsx';
 import Modal from './Modal.jsx';
+import HistoryChart from './HistoryChart.jsx';
 import {
   getTankReadings,
   getFlowmeterReadings,
@@ -124,6 +125,19 @@ const historyColumns = {
   ]
 };
 
+const chartSeriesConfig = {
+  well: [
+    { key: 'depth', label: 'Depth (m)', color: '#2563eb' }
+  ],
+  tank: [
+    { key: 'level', label: 'Level (L)', color: '#16a34a' }
+  ],
+  flowmeter: [
+    { key: 'instantaneousFlow', label: 'Instantaneous flow (L/min)', color: '#0ea5e9' },
+    { key: 'totalizedVolume', label: 'Totalized volume (L)', color: '#9333ea' }
+  ]
+};
+
 const initialHistoryState = {
   loading: false,
   error: '',
@@ -158,6 +172,9 @@ export default function SiteDetail({
   const [historyState, setHistoryState] = useState(() => ({ ...initialHistoryState }));
   const [historyReloadToken, setHistoryReloadToken] = useState(0);
   const [historyDeletingId, setHistoryDeletingId] = useState(null);
+  const [historyView, setHistoryView] = useState('table');
+  const [chartForm, setChartForm] = useState({ from: '', to: '' });
+  const [chartState, setChartState] = useState({ loading: false, error: '', items: [] });
 
   useEffect(() => {
     setCreateModal(null);
@@ -260,6 +277,9 @@ export default function SiteDetail({
   const openHistoryModal = (type, feature) => {
     setHistoryPage(1);
     setHistoryModal({ type, feature });
+    setHistoryView('table');
+    setChartForm({ from: '', to: '' });
+    setChartState({ loading: false, error: '', items: [] });
   };
 
   const closeHistoryModal = () => {
@@ -268,6 +288,9 @@ export default function SiteDetail({
     setHistoryState({ ...initialHistoryState });
     setHistoryReloadToken(0);
     setHistoryDeletingId(null);
+    setHistoryView('table');
+    setChartForm({ from: '', to: '' });
+    setChartState({ loading: false, error: '', items: [] });
   };
 
   const handleHistoryPrevious = () => {
@@ -332,6 +355,88 @@ export default function SiteDetail({
     } finally {
       setHistoryDeletingId(null);
     }
+  };
+
+  const loadChartData = async ({ from: overrideFrom, to: overrideTo } = {}) => {
+    if (!historyModal) {
+      return;
+    }
+
+    const currentHistory = historyModal;
+    const fromValue = overrideFrom !== undefined ? overrideFrom : chartForm.from;
+    const toValue = overrideTo !== undefined ? overrideTo : chartForm.to;
+
+    if (fromValue && toValue) {
+      const fromDate = new Date(fromValue);
+      const toDate = new Date(toValue);
+      if (fromDate > toDate) {
+        setChartState((prev) => ({ ...prev, loading: false, error: '“From” date must be before “to” date.' }));
+        return;
+      }
+    }
+
+    setChartState((prev) => ({ ...prev, loading: true, error: '' }));
+
+    try {
+      const fetchHistory = historyFetchers[currentHistory.type];
+      if (!fetchHistory) {
+        throw new Error('Unsupported feature type');
+      }
+
+      const params = { page: 1, limit: 500, order: 'asc' };
+      if (fromValue) {
+        const fromDate = new Date(fromValue);
+        if (!Number.isNaN(fromDate.getTime())) {
+          params.from = fromDate.toISOString();
+        }
+      }
+      if (toValue) {
+        const toDate = new Date(toValue);
+        if (!Number.isNaN(toDate.getTime())) {
+          params.to = toDate.toISOString();
+        }
+      }
+
+      const result = await fetchHistory(currentHistory.feature.id, params);
+      if (
+        !historyModal ||
+        historyModal.feature.id !== currentHistory.feature.id ||
+        historyModal.type !== currentHistory.type
+      ) {
+        return;
+      }
+      setChartState({ loading: false, error: '', items: result.items ?? [] });
+    } catch (error) {
+      setChartState({
+        loading: false,
+        error: error.message || 'Unable to load chart data',
+        items: []
+      });
+    }
+  };
+
+  const handleChartFormChange = (field) => (event) => {
+    const { value } = event.target;
+    setChartForm((prev) => ({ ...prev, [field]: value }));
+  };
+
+  const handleChartSubmit = async (event) => {
+    event.preventDefault();
+    await loadChartData();
+  };
+
+  const handleChartReset = async () => {
+    setChartForm({ from: '', to: '' });
+    await loadChartData({ from: '', to: '' });
+  };
+
+  const handleShowChart = async () => {
+    setHistoryView('chart');
+    await loadChartData();
+  };
+
+  const handleShowTable = () => {
+    setHistoryView('table');
   };
 
   if (!site) {
@@ -651,12 +756,67 @@ export default function SiteDetail({
               <h2>{`${typeLabels[historyModal.type]} ${historyTypeLabels[historyModal.type]}`}</h2>
               <p className="history-fullscreen-subtitle">{historyModal.feature.name}</p>
             </div>
-            <button type="button" className="history-close-button" onClick={closeHistoryModal}>
-              Close
-            </button>
+            <div className="history-fullscreen-actions">
+              {historyView === 'chart' ? (
+                <button type="button" className="secondary" onClick={handleShowTable}>
+                  View table
+                </button>
+              ) : (
+                <button type="button" className="secondary" onClick={handleShowChart}>
+                  View chart
+                </button>
+              )}
+              <button type="button" className="history-close-button" onClick={closeHistoryModal}>
+                Close
+              </button>
+            </div>
           </div>
           <div className="history-fullscreen-body">
-            {historyState.loading ? (
+            {historyView === 'chart' ? (
+              <div className="history-chart-view">
+                <form className="history-chart-controls" onSubmit={handleChartSubmit}>
+                  <label>
+                    From
+                    <input
+                      type="datetime-local"
+                      value={chartForm.from}
+                      onChange={handleChartFormChange('from')}
+                    />
+                  </label>
+                  <label>
+                    To
+                    <input
+                      type="datetime-local"
+                      value={chartForm.to}
+                      onChange={handleChartFormChange('to')}
+                    />
+                  </label>
+                  <div className="history-chart-buttons">
+                    <button type="submit" disabled={chartState.loading}>
+                      {chartState.loading ? 'Loading…' : 'Apply'}
+                    </button>
+                    <button
+                      type="button"
+                      className="secondary"
+                      onClick={handleChartReset}
+                      disabled={chartState.loading}
+                    >
+                      Clear
+                    </button>
+                  </div>
+                </form>
+                {chartState.error ? (
+                  <p className="form-error">{chartState.error}</p>
+                ) : chartState.loading && chartState.items.length === 0 ? (
+                  <p className="history-status">Loading chart…</p>
+                ) : (
+                  <HistoryChart
+                    data={chartState.items}
+                    series={chartSeriesConfig[historyModal.type] || []}
+                  />
+                )}
+              </div>
+            ) : historyState.loading ? (
               <p className="history-status">Loading history…</p>
             ) : historyState.error ? (
               <p className="form-error">{historyState.error}</p>
