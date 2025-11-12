@@ -725,6 +725,7 @@ export default function SiteDetail({
                     key={`well-${feature.data.id}`}
                     well={feature.data}
                     onViewHistory={(well) => openHistoryModal('well', well)}
+                    onAddMeasurement={(well) => openRecordModal('well', well)}
                   />
                 );
               }
@@ -734,6 +735,7 @@ export default function SiteDetail({
                     key={`tank-${feature.data.id}`}
                     tank={feature.data}
                     onViewHistory={(tank) => openHistoryModal('tank', tank)}
+                    onAddReading={(tank) => openRecordModal('tank', tank)}
                   />
                 );
               }
@@ -742,6 +744,7 @@ export default function SiteDetail({
                   key={`flowmeter-${feature.data.id}`}
                   flowmeter={feature.data}
                   onViewHistory={(flowmeter) => openHistoryModal('flowmeter', flowmeter)}
+                  onAddReading={(flowmeter) => openRecordModal('flowmeter', flowmeter)}
                 />
               );
             })}

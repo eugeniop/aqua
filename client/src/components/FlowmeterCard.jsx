@@ -2,7 +2,7 @@ import './AssetCards.css';
 
 const formatDate = (value) => (value ? new Date(value).toLocaleString() : '—');
 
-export default function FlowmeterCard({ flowmeter, onViewHistory }) {
+export default function FlowmeterCard({ flowmeter, onViewHistory, onAddReading }) {
   return (
     <div className="asset-card">
       <header>
@@ -27,6 +27,11 @@ export default function FlowmeterCard({ flowmeter, onViewHistory }) {
         )}
       </section>
       <div className="card-actions">
+        {onAddReading && (
+          <button type="button" onClick={() => onAddReading(flowmeter)}>
+            Add reading
+          </button>
+        )}
         <button type="button" className="ghost" onClick={() => onViewHistory(flowmeter)}>
           View readings
         </button>
