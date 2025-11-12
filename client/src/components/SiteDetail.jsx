@@ -564,8 +564,6 @@ export default function SiteDetail({
                   <WellCard
                     key={`well-${feature.data.id}`}
                     well={feature.data}
-                    onAddMeasurement={(well) => openRecordModal('well', well)}
-                    onAddWell={() => openCreateModal('well')}
                     onViewHistory={(well) => openHistoryModal('well', well)}
                   />
                 );
@@ -575,8 +573,6 @@ export default function SiteDetail({
                   <TankCard
                     key={`tank-${feature.data.id}`}
                     tank={feature.data}
-                    onAddReading={(tank) => openRecordModal('tank', tank)}
-                    onAddTank={() => openCreateModal('tank')}
                     onViewHistory={(tank) => openHistoryModal('tank', tank)}
                   />
                 );
@@ -585,8 +581,6 @@ export default function SiteDetail({
                 <FlowmeterCard
                   key={`flowmeter-${feature.data.id}`}
                   flowmeter={feature.data}
-                  onAddReading={(flowmeter) => openRecordModal('flowmeter', flowmeter)}
-                  onAddFlowmeter={() => openCreateModal('flowmeter')}
                   onViewHistory={(flowmeter) => openHistoryModal('flowmeter', flowmeter)}
                 />
               );
@@ -596,68 +590,71 @@ export default function SiteDetail({
       </section>
 
       {historyModal && (
-        <Modal
-          title={`${typeLabels[historyModal.type]} ${historyTypeLabels[historyModal.type]}`}
-          onClose={closeHistoryModal}
-          actions={
-            <button type="button" className="secondary" onClick={closeHistoryModal}>
+        <div className="history-fullscreen" role="dialog" aria-modal="true">
+          <div className="history-fullscreen-header">
+            <div>
+              <h2>{`${typeLabels[historyModal.type]} ${historyTypeLabels[historyModal.type]}`}</h2>
+              <p className="history-fullscreen-subtitle">{historyModal.feature.name}</p>
+            </div>
+            <button type="button" className="history-close-button" onClick={closeHistoryModal}>
               Close
             </button>
-          }
-        >
-          {historyState.loading ? (
-            <p className="history-status">Loading history…</p>
-          ) : historyState.error ? (
-            <p className="form-error">{historyState.error}</p>
-          ) : historyState.items.length === 0 ? (
-            <p className="history-empty">No {historySummaryLabel} recorded yet.</p>
-          ) : (
-            <>
-              <div className="history-table-wrapper">
-                <table className="history-table">
-                  <thead>
-                    <tr>
-                      {historyColumns[historyModal.type].map((column) => (
-                        <th key={column.key}>{column.label}</th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {historyState.items.map((item) => (
-                      <tr key={item.id}>
+          </div>
+          <div className="history-fullscreen-body">
+            {historyState.loading ? (
+              <p className="history-status">Loading history…</p>
+            ) : historyState.error ? (
+              <p className="form-error">{historyState.error}</p>
+            ) : historyState.items.length === 0 ? (
+              <p className="history-empty">No {historySummaryLabel} recorded yet.</p>
+            ) : (
+              <>
+                <div className="history-table-wrapper">
+                  <table className="history-table">
+                    <thead>
+                      <tr>
                         {historyColumns[historyModal.type].map((column) => (
-                          <td key={column.key}>{column.render(item)}</td>
+                          <th key={column.key}>{column.label}</th>
                         ))}
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-              <div className="history-pagination">
-                <span>
-                  Showing {historyRangeStart}–{historyRangeEnd} of {historyState.total}
-                </span>
-                <div className="history-pagination-buttons">
-                  <button
-                    type="button"
-                    onClick={handleHistoryPrevious}
-                    disabled={!historyHasPrevious || historyState.loading}
-                    className="secondary"
-                  >
-                    Previous
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleHistoryNext}
-                    disabled={!historyHasNext || historyState.loading}
-                  >
-                    Next
-                  </button>
+                    </thead>
+                    <tbody>
+                      {historyState.items.map((item) => (
+                        <tr key={item.id}>
+                          {historyColumns[historyModal.type].map((column) => (
+                            <td key={column.key}>{column.render(item)}</td>
+                          ))}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
                 </div>
-              </div>
-            </>
-          )}
-        </Modal>
+                <div className="history-pagination">
+                  <span>
+                    Showing {historyRangeStart}–{historyRangeEnd} of {historyState.total}
+                  </span>
+                  <div className="history-pagination-buttons">
+                    <button
+                      type="button"
+                      onClick={handleHistoryPrevious}
+                      disabled={!historyHasPrevious || historyState.loading}
+                      className="secondary"
+                    >
+                      Previous
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleHistoryNext}
+                      disabled={!historyHasNext || historyState.loading}
+                    >
+                      Next
+                    </button>
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
       )}
 
       {createModal && (

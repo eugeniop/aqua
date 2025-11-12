@@ -2,7 +2,7 @@ import './AssetCards.css';
 
 const formatDate = (value) => (value ? new Date(value).toLocaleString() : '—');
 
-export default function TankCard({ tank, onAddReading, onAddTank, onViewHistory }) {
+export default function TankCard({ tank, onViewHistory }) {
   return (
     <div className="asset-card">
       <header>
@@ -27,14 +27,8 @@ export default function TankCard({ tank, onAddReading, onAddTank, onViewHistory 
         )}
       </section>
       <div className="card-actions">
-        <button type="button" onClick={() => onAddReading(tank)}>
-          Add reading
-        </button>
         <button type="button" className="ghost" onClick={() => onViewHistory(tank)}>
           View readings
-        </button>
-        <button type="button" className="secondary" onClick={onAddTank}>
-          Add tank
         </button>
       </div>
     </div>
