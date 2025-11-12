@@ -14,10 +14,42 @@ const parsePagination = (query) => {
 
   const page = Number.isNaN(pageValue) || pageValue < 1 ? 1 : pageValue;
   const limitCandidate = Number.isNaN(limitValue) || limitValue < 1 ? 10 : limitValue;
-  const limit = Math.min(limitCandidate, 50);
+  const limit = Math.min(limitCandidate, 500);
 
   return { page, limit };
 };
+
+const parseDateRange = (query) => {
+  const parse = (value) => {
+    if (!value) {
+      return null;
+    }
+    const date = new Date(value);
+    return Number.isNaN(date.getTime()) ? null : date;
+  };
+
+  return {
+    from: parse(query.from),
+    to: parse(query.to)
+  };
+};
+
+const buildHistoryFilter = (baseFilter, query) => {
+  const filter = { ...baseFilter };
+  const { from, to } = parseDateRange(query);
+  if (from || to) {
+    filter.recordedAt = {};
+    if (from) {
+      filter.recordedAt.$gte = from;
+    }
+    if (to) {
+      filter.recordedAt.$lte = to;
+    }
+  }
+  return filter;
+};
+
+const parseSortOrder = (query) => (query.order === 'asc' ? 1 : -1);
 
 const formatHistoryEntry = (doc) => ({
   id: doc._id.toString(),
@@ -119,15 +151,18 @@ export const recordWellMeasurement = async (req, res) => {
 export const listTankReadings = async (req, res) => {
   try {
     const { tankId } = req.params;
-    const { page, limit } = parsePagination(req.query ?? {});
+    const query = req.query ?? {};
+    const { page, limit } = parsePagination(query);
     const skip = (page - 1) * limit;
+    const sortOrder = parseSortOrder(query);
+    const filter = buildHistoryFilter({ tank: tankId }, query);
 
     const [readings, total] = await Promise.all([
-      TankLevelLog.find({ tank: tankId })
-        .sort({ recordedAt: -1 })
+      TankLevelLog.find(filter)
+        .sort({ recordedAt: sortOrder })
         .skip(skip)
         .limit(limit),
-      TankLevelLog.countDocuments({ tank: tankId })
+      TankLevelLog.countDocuments(filter)
     ]);
 
     res.json(buildHistoryResponse(readings, total, page, limit));
@@ -139,15 +174,18 @@ export const listTankReadings = async (req, res) => {
 export const listFlowmeterReadings = async (req, res) => {
   try {
     const { flowmeterId } = req.params;
-    const { page, limit } = parsePagination(req.query ?? {});
+    const query = req.query ?? {};
+    const { page, limit } = parsePagination(query);
     const skip = (page - 1) * limit;
+    const sortOrder = parseSortOrder(query);
+    const filter = buildHistoryFilter({ flowmeter: flowmeterId }, query);
 
     const [readings, total] = await Promise.all([
-      FlowmeterReading.find({ flowmeter: flowmeterId })
-        .sort({ recordedAt: -1 })
+      FlowmeterReading.find(filter)
+        .sort({ recordedAt: sortOrder })
         .skip(skip)
         .limit(limit),
-      FlowmeterReading.countDocuments({ flowmeter: flowmeterId })
+      FlowmeterReading.countDocuments(filter)
     ]);
 
     res.json(buildHistoryResponse(readings, total, page, limit));
@@ -159,15 +197,18 @@ export const listFlowmeterReadings = async (req, res) => {
 export const listWellMeasurements = async (req, res) => {
   try {
     const { wellId } = req.params;
-    const { page, limit } = parsePagination(req.query ?? {});
+    const query = req.query ?? {};
+    const { page, limit } = parsePagination(query);
     const skip = (page - 1) * limit;
+    const sortOrder = parseSortOrder(query);
+    const filter = buildHistoryFilter({ well: wellId }, query);
 
     const [measurements, total] = await Promise.all([
-      WellMeasurement.find({ well: wellId })
-        .sort({ recordedAt: -1 })
+      WellMeasurement.find(filter)
+        .sort({ recordedAt: sortOrder })
         .skip(skip)
         .limit(limit),
-      WellMeasurement.countDocuments({ well: wellId })
+      WellMeasurement.countDocuments(filter)
     ]);
 
     res.json(buildHistoryResponse(measurements, total, page, limit));
