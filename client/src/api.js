@@ -86,3 +86,18 @@ export const getFlowmeterReadings = (flowmeterId, params) =>
 
 export const getWellMeasurements = (wellId, params) =>
   fetch(`${API_ROOT}/wells/${wellId}/measurements${toQueryString(params)}`).then(handleResponse);
+
+export const deleteTankReading = (tankId, readingId) =>
+  fetch(`${API_ROOT}/tanks/${tankId}/readings/${readingId}`, {
+    method: 'DELETE'
+  }).then(handleResponse);
+
+export const deleteFlowmeterReading = (flowmeterId, readingId) =>
+  fetch(`${API_ROOT}/flowmeters/${flowmeterId}/readings/${readingId}`, {
+    method: 'DELETE'
+  }).then(handleResponse);
+
+export const deleteWellMeasurement = (wellId, measurementId) =>
+  fetch(`${API_ROOT}/wells/${wellId}/measurements/${measurementId}`, {
+    method: 'DELETE'
+  }).then(handleResponse);

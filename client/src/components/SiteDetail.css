@@ -144,6 +144,32 @@
   z-index: 1;
 }
 
+.history-actions-column {
+  text-align: right;
+  white-space: nowrap;
+  width: 1%;
+}
+
+.history-delete-button {
+  border: 1px solid #dc2626;
+  border-radius: 8px;
+  background: #fee2e2;
+  color: #b91c1c;
+  font-weight: 600;
+  padding: 0.35rem 0.75rem;
+  cursor: pointer;
+  transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+}
+
+.history-delete-button:hover:enabled {
+  background: #fecaca;
+}
+
+.history-delete-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 .history-table tbody tr:last-child td {
   border-bottom: none;
 }
