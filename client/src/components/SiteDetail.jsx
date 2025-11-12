@@ -3,7 +3,14 @@ import TankCard from './TankCard.jsx';
 import FlowmeterCard from './FlowmeterCard.jsx';
 import WellCard from './WellCard.jsx';
 import Modal from './Modal.jsx';
-import { getTankReadings, getFlowmeterReadings, getWellMeasurements } from '../api.js';
+import {
+  getTankReadings,
+  getFlowmeterReadings,
+  getWellMeasurements,
+  deleteTankReading,
+  deleteFlowmeterReading,
+  deleteWellMeasurement
+} from '../api.js';
 import './SiteDetail.css';
 
 const defaultTimestamp = () => new Date().toISOString().slice(0, 16);
@@ -149,6 +156,8 @@ export default function SiteDetail({
   const [historyModal, setHistoryModal] = useState(null);
   const [historyPage, setHistoryPage] = useState(1);
   const [historyState, setHistoryState] = useState(() => ({ ...initialHistoryState }));
+  const [historyReloadToken, setHistoryReloadToken] = useState(0);
+  const [historyDeletingId, setHistoryDeletingId] = useState(null);
 
   useEffect(() => {
     setCreateModal(null);
@@ -163,6 +172,8 @@ export default function SiteDetail({
     setHistoryModal(null);
     setHistoryPage(1);
     setHistoryState({ ...initialHistoryState });
+    setHistoryReloadToken(0);
+    setHistoryDeletingId(null);
   }, [site?.id]);
 
   const features = useMemo(() => {
@@ -212,6 +223,10 @@ export default function SiteDetail({
         if (cancelled) {
           return;
         }
+        if ((result.items?.length ?? 0) === 0 && historyPage > 1 && (result.total ?? 0) > 0) {
+          setHistoryPage((prev) => Math.max(1, prev - 1));
+          return;
+        }
         setHistoryState({
           loading: false,
           error: '',
@@ -236,7 +251,7 @@ export default function SiteDetail({
     return () => {
       cancelled = true;
     };
-  }, [historyModal, historyPage]);
+  }, [historyModal, historyPage, historyReloadToken]);
 
   const toggleType = (type) => {
     setVisibleTypes((prev) => ({ ...prev, [type]: !prev[type] }));
@@ -251,6 +266,8 @@ export default function SiteDetail({
     setHistoryModal(null);
     setHistoryPage(1);
     setHistoryState({ ...initialHistoryState });
+    setHistoryReloadToken(0);
+    setHistoryDeletingId(null);
   };
 
   const handleHistoryPrevious = () => {
@@ -278,6 +295,44 @@ export default function SiteDetail({
         )
       : 0;
   const historySummaryLabel = historyModal ? historyTypeLabels[historyModal.type].toLowerCase() : '';
+
+  const historyDeleteHandlers = {
+    well: deleteWellMeasurement,
+    tank: deleteTankReading,
+    flowmeter: deleteFlowmeterReading
+  };
+
+  const handleHistoryDelete = async (item) => {
+    if (!historyModal) {
+      return;
+    }
+
+    const confirmDelete = window.confirm('Are you sure you want to delete this entry? This cannot be undone.');
+    if (!confirmDelete) {
+      return;
+    }
+
+    const deleteHandler = historyDeleteHandlers[historyModal.type];
+    if (!deleteHandler) {
+      setHistoryState((prev) => ({ ...prev, error: 'Unable to delete entry.' }));
+      return;
+    }
+
+    setHistoryDeletingId(item.id);
+    setHistoryState((prev) => ({ ...prev, error: '' }));
+
+    try {
+      await deleteHandler(historyModal.feature.id, item.id);
+      setHistoryReloadToken((prev) => prev + 1);
+    } catch (error) {
+      setHistoryState((prev) => ({
+        ...prev,
+        error: error.message || 'Unable to delete entry'
+      }));
+    } finally {
+      setHistoryDeletingId(null);
+    }
+  };
 
   if (!site) {
     return (
@@ -616,6 +671,7 @@ export default function SiteDetail({
                         {historyColumns[historyModal.type].map((column) => (
                           <th key={column.key}>{column.label}</th>
                         ))}
+                        <th className="history-actions-column">Actions</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -624,6 +680,16 @@ export default function SiteDetail({
                           {historyColumns[historyModal.type].map((column) => (
                             <td key={column.key}>{column.render(item)}</td>
                           ))}
+                          <td className="history-actions-column">
+                            <button
+                              type="button"
+                              className="history-delete-button"
+                              onClick={() => handleHistoryDelete(item)}
+                              disabled={historyDeletingId === item.id || historyState.loading}
+                            >
+                              {historyDeletingId === item.id ? 'Deleting…' : 'Delete'}
+                            </button>
+                          </td>
                         </tr>
                       ))}
                     </tbody>

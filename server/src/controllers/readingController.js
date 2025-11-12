@@ -175,3 +175,45 @@ export const listWellMeasurements = async (req, res) => {
     res.status(500).json({ message: 'Unable to load well measurements', error: error.message });
   }
 };
+
+export const deleteTankReading = async (req, res) => {
+  try {
+    const { tankId, readingId } = req.params;
+    const deleted = await TankLevelLog.findOneAndDelete({ _id: readingId, tank: tankId });
+    if (!deleted) {
+      return res.status(404).json({ message: 'Tank reading not found' });
+    }
+    res.status(204).send();
+  } catch (error) {
+    res.status(500).json({ message: 'Unable to delete tank reading', error: error.message });
+  }
+};
+
+export const deleteFlowmeterReading = async (req, res) => {
+  try {
+    const { flowmeterId, readingId } = req.params;
+    const deleted = await FlowmeterReading.findOneAndDelete({
+      _id: readingId,
+      flowmeter: flowmeterId
+    });
+    if (!deleted) {
+      return res.status(404).json({ message: 'Flowmeter reading not found' });
+    }
+    res.status(204).send();
+  } catch (error) {
+    res.status(500).json({ message: 'Unable to delete flowmeter reading', error: error.message });
+  }
+};
+
+export const deleteWellMeasurement = async (req, res) => {
+  try {
+    const { wellId, measurementId } = req.params;
+    const deleted = await WellMeasurement.findOneAndDelete({ _id: measurementId, well: wellId });
+    if (!deleted) {
+      return res.status(404).json({ message: 'Well measurement not found' });
+    }
+    res.status(204).send();
+  } catch (error) {
+    res.status(500).json({ message: 'Unable to delete well measurement', error: error.message });
+  }
+};
