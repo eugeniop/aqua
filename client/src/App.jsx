@@ -23,6 +23,7 @@ export default function App() {
   const [loadingSites, setLoadingSites] = useState(false);
   const [loadingSite, setLoadingSite] = useState(false);
   const [error, setError] = useState('');
+  const [showSitePanel, setShowSitePanel] = useState(true);
 
   useEffect(() => {
     if (!operator) {
@@ -118,19 +119,30 @@ export default function App() {
     await loadSiteDetail(siteId);
   };
 
+  const toggleSitePanel = () => {
+    setShowSitePanel((value) => !value);
+  };
+
   if (!operator) {
     return <LoginForm onLogin={setOperator} />;
   }
 
   return (
     <div className="app-shell">
-      <SiteList
-        sites={sites}
-        selectedSiteId={selectedSiteId}
-        onSelect={handleSelectSite}
-        onCreate={handleCreateSite}
-      />
+      {showSitePanel && (
+        <SiteList
+          sites={sites}
+          selectedSiteId={selectedSiteId}
+          onSelect={handleSelectSite}
+          onCreate={handleCreateSite}
+        />
+      )}
       <main className="content">
+        <div className="content-header">
+          <button type="button" className="toggle-panel" onClick={toggleSitePanel}>
+            {showSitePanel ? 'Hide sites' : 'Show sites'}
+          </button>
+        </div>
         {error && <div className="banner error">{error}</div>}
         {loadingSites || loadingSite ? (
           <div className="loading">Loading data…</div>
