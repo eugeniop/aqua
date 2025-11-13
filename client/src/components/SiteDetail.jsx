@@ -175,6 +175,10 @@ export default function SiteDetail({
   const [historyView, setHistoryView] = useState('table');
   const [chartForm, setChartForm] = useState({ from: '', to: '' });
   const [chartState, setChartState] = useState({ loading: false, error: '', items: [] });
+  const [historyFilterForm, setHistoryFilterForm] = useState({ from: '', to: '' });
+  const [historyFilters, setHistoryFilters] = useState({ from: '', to: '' });
+  const [historyControlsError, setHistoryControlsError] = useState('');
+  const [historyDownloading, setHistoryDownloading] = useState(false);
 
   useEffect(() => {
     setCreateModal(null);
@@ -191,6 +195,10 @@ export default function SiteDetail({
     setHistoryState({ ...initialHistoryState });
     setHistoryReloadToken(0);
     setHistoryDeletingId(null);
+    setHistoryFilterForm({ from: '', to: '' });
+    setHistoryFilters({ from: '', to: '' });
+    setHistoryControlsError('');
+    setHistoryDownloading(false);
   }, [site?.id]);
 
   const features = useMemo(() => {
@@ -233,10 +241,24 @@ export default function SiteDetail({
         if (!fetchHistory) {
           throw new Error('Unsupported feature type');
         }
-        const result = await fetchHistory(historyModal.feature.id, {
+        const params = {
           page: historyPage,
           limit: HISTORY_PAGE_SIZE
-        });
+        };
+        if (historyFilters.from) {
+          const fromDate = new Date(historyFilters.from);
+          if (!Number.isNaN(fromDate.getTime())) {
+            params.from = fromDate.toISOString();
+          }
+        }
+        if (historyFilters.to) {
+          const toDate = new Date(historyFilters.to);
+          if (!Number.isNaN(toDate.getTime())) {
+            params.to = toDate.toISOString();
+          }
+        }
+
+        const result = await fetchHistory(historyModal.feature.id, params);
         if (cancelled) {
           return;
         }
@@ -268,7 +290,7 @@ export default function SiteDetail({
     return () => {
       cancelled = true;
     };
-  }, [historyModal, historyPage, historyReloadToken]);
+  }, [historyModal, historyPage, historyReloadToken, historyFilters]);
 
   const toggleType = (type) => {
     setVisibleTypes((prev) => ({ ...prev, [type]: !prev[type] }));
@@ -280,6 +302,10 @@ export default function SiteDetail({
     setHistoryView('table');
     setChartForm({ from: '', to: '' });
     setChartState({ loading: false, error: '', items: [] });
+    setHistoryFilterForm({ from: '', to: '' });
+    setHistoryFilters({ from: '', to: '' });
+    setHistoryControlsError('');
+    setHistoryDownloading(false);
   };
 
   const closeHistoryModal = () => {
@@ -291,6 +317,10 @@ export default function SiteDetail({
     setHistoryView('table');
     setChartForm({ from: '', to: '' });
     setChartState({ loading: false, error: '', items: [] });
+    setHistoryFilterForm({ from: '', to: '' });
+    setHistoryFilters({ from: '', to: '' });
+    setHistoryControlsError('');
+    setHistoryDownloading(false);
   };
 
   const handleHistoryPrevious = () => {
@@ -354,6 +384,121 @@ export default function SiteDetail({
       }));
     } finally {
       setHistoryDeletingId(null);
+    }
+  };
+
+  const handleHistoryFilterFormChange = (field) => (event) => {
+    const { value } = event.target;
+    setHistoryFilterForm((prev) => ({ ...prev, [field]: value }));
+  };
+
+  const handleHistoryFilterSubmit = (event) => {
+    event.preventDefault();
+    if (!historyModal) {
+      return;
+    }
+
+    const { from, to } = historyFilterForm;
+    if (from && to) {
+      const fromDate = new Date(from);
+      const toDate = new Date(to);
+      if (fromDate > toDate) {
+        setHistoryControlsError('“From” date must be before “to” date.');
+        return;
+      }
+    }
+
+    setHistoryControlsError('');
+    setHistoryFilters({ from, to });
+    setHistoryPage(1);
+  };
+
+  const handleHistoryFilterReset = () => {
+    setHistoryFilterForm({ from: '', to: '' });
+    setHistoryFilters({ from: '', to: '' });
+    setHistoryControlsError('');
+    setHistoryPage(1);
+  };
+
+  const handleDownloadCsv = async () => {
+    if (!historyModal) {
+      return;
+    }
+
+    const fetchHistory = historyFetchers[historyModal.type];
+    if (!fetchHistory) {
+      setHistoryControlsError('Unable to download history for this feature.');
+      return;
+    }
+
+    setHistoryControlsError('');
+    setHistoryDownloading(true);
+
+    try {
+      const params = { page: 1, limit: 500, order: 'desc' };
+      if (historyFilters.from) {
+        const fromDate = new Date(historyFilters.from);
+        if (!Number.isNaN(fromDate.getTime())) {
+          params.from = fromDate.toISOString();
+        }
+      }
+      if (historyFilters.to) {
+        const toDate = new Date(historyFilters.to);
+        if (!Number.isNaN(toDate.getTime())) {
+          params.to = toDate.toISOString();
+        }
+      }
+
+      const result = await fetchHistory(historyModal.feature.id, params);
+      const items = result.items ?? [];
+
+      if (items.length === 0) {
+        setHistoryControlsError('No rows available for the selected filters.');
+        return;
+      }
+
+      const columns = historyColumns[historyModal.type] ?? [];
+      if (columns.length === 0) {
+        setHistoryControlsError('No columns available for export.');
+        return;
+      }
+
+      const escapeValue = (value) => {
+        if (value == null) {
+          return '""';
+        }
+        const stringValue = String(value);
+        return `"${stringValue.replace(/"/g, '""')}"`;
+      };
+
+      const headerRow = columns.map((column) => escapeValue(column.label)).join(',');
+      const dataRows = items.map((item) =>
+        columns
+          .map((column) => {
+            const rendered = column.render ? column.render(item) : item[column.key];
+            return escapeValue(rendered ?? '');
+          })
+          .join(',')
+      );
+      const csvContent = [headerRow, ...dataRows].join('\r\n');
+
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      const safeName = `${historyModal.feature.name}-${historyTypeLabels[historyModal.type] || 'history'}-${new Date()
+        .toISOString()
+        .replace(/[:.]/g, '-')}`
+        .replace(/\s+/g, '_');
+      link.href = url;
+      link.setAttribute('download', `${safeName}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      setHistoryControlsError(error.message || 'Unable to download CSV.');
+    } finally {
+      setHistoryDownloading(false);
     }
   };
 
@@ -432,11 +577,13 @@ export default function SiteDetail({
 
   const handleShowChart = async () => {
     setHistoryView('chart');
+    setHistoryControlsError('');
     await loadChartData();
   };
 
   const handleShowTable = () => {
     setHistoryView('table');
+    setHistoryControlsError('');
   };
 
   if (!site) {
@@ -827,6 +974,50 @@ export default function SiteDetail({
               <p className="history-empty">No {historySummaryLabel} recorded yet.</p>
             ) : (
               <>
+                <div className="history-table-controls">
+                  <form className="history-table-filter" onSubmit={handleHistoryFilterSubmit}>
+                    <label>
+                      From
+                      <input
+                        type="datetime-local"
+                        value={historyFilterForm.from}
+                        onChange={handleHistoryFilterFormChange('from')}
+                        disabled={historyState.loading}
+                      />
+                    </label>
+                    <label>
+                      To
+                      <input
+                        type="datetime-local"
+                        value={historyFilterForm.to}
+                        onChange={handleHistoryFilterFormChange('to')}
+                        disabled={historyState.loading}
+                      />
+                    </label>
+                    <div className="history-table-buttons">
+                      <button type="submit" disabled={historyState.loading}>
+                        {historyState.loading ? 'Loading…' : 'Apply'}
+                      </button>
+                      <button
+                        type="button"
+                        className="secondary"
+                        onClick={handleHistoryFilterReset}
+                        disabled={historyState.loading}
+                      >
+                        Clear
+                      </button>
+                    </div>
+                  </form>
+                  <button
+                    type="button"
+                    className="history-download-button secondary"
+                    onClick={handleDownloadCsv}
+                    disabled={historyDownloading || historyState.loading || historyState.items.length === 0}
+                  >
+                    {historyDownloading ? 'Downloading…' : 'Download CSV'}
+                  </button>
+                </div>
+                {historyControlsError && <p className="form-error history-controls-error">{historyControlsError}</p>}
                 <div className="history-table-wrapper">
                   <table className="history-table">
                     <thead>
