@@ -282,6 +282,98 @@
   background: #f3f4f6;
 }
 
+.history-table-controls {
+  margin-bottom: 0.75rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  align-items: flex-end;
+  justify-content: space-between;
+}
+
+.history-table-filter {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  align-items: flex-end;
+  flex: 1 1 260px;
+}
+
+.history-table-filter label {
+  display: grid;
+  gap: 0.35rem;
+  font-size: 0.85rem;
+  color: #374151;
+}
+
+.history-table-filter input {
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  padding: 0.45rem 0.55rem;
+  font-size: 0.9rem;
+}
+
+.history-table-buttons {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.history-table-buttons button {
+  border: none;
+  border-radius: 8px;
+  background: #2563eb;
+  color: white;
+  font-weight: 600;
+  padding: 0.5rem 0.85rem;
+  cursor: pointer;
+  transition: background 0.2s ease, opacity 0.2s ease;
+}
+
+.history-table-buttons button:hover:enabled {
+  background: #1d4ed8;
+}
+
+.history-table-buttons button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.history-table-buttons button.secondary {
+  background: #eef2ff;
+  color: #312e81;
+}
+
+.history-table-buttons button.secondary:hover:enabled {
+  background: #e0e7ff;
+}
+
+.history-download-button {
+  border: 1px solid #2563eb;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #2563eb;
+  font-weight: 600;
+  padding: 0.5rem 0.85rem;
+  cursor: pointer;
+  transition: background 0.2s ease, color 0.2s ease, opacity 0.2s ease;
+  align-self: flex-end;
+}
+
+.history-download-button:hover:enabled {
+  background: #2563eb;
+  color: #ffffff;
+}
+
+.history-download-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.history-controls-error {
+  margin-top: -0.4rem;
+  margin-bottom: 0.5rem;
+}
+
 .history-fullscreen-body {
   flex: 1;
   display: flex;
