@@ -11,12 +11,13 @@ import {
   addFlowmeter,
   recordTankLevel,
   recordFlowmeterReading,
-  recordWellMeasurement
+  recordWellMeasurement,
+  setAuthContext
 } from './api.js';
 import './App.css';
 
 export default function App() {
-  const [operator, setOperator] = useState('');
+  const [currentUser, setCurrentUser] = useState(null);
   const [sites, setSites] = useState([]);
   const [selectedSiteId, setSelectedSiteId] = useState('');
   const [activeSite, setActiveSite] = useState(null);
@@ -26,15 +27,24 @@ export default function App() {
   const [showSitePanel, setShowSitePanel] = useState(true);
 
   useEffect(() => {
-    if (!operator) {
+    if (!currentUser) {
       return;
     }
     loadSites();
-  }, [operator]);
+  }, [currentUser]);
+
+  const handleLogin = ({ name, role }) => {
+    setAuthContext({ name, role });
+    setCurrentUser({ name, role });
+  };
 
   const loadSites = async () => {
     setLoadingSites(true);
     setError('');
+    if (!currentUser) {
+      setLoadingSites(false);
+      return;
+    }
     try {
       const result = await getSites();
       setSites(result);
@@ -81,6 +91,9 @@ export default function App() {
 
   const handleCreateSite = async (payload) => {
     try {
+      if (currentUser?.role !== 'admin') {
+        throw new Error('You do not have permission to create sites.');
+      }
       const newSite = await createSite(payload);
       await loadSites();
       await handleSelectSite(newSite.id);
@@ -123,9 +136,14 @@ export default function App() {
     setShowSitePanel((value) => !value);
   };
 
-  if (!operator) {
-    return <LoginForm onLogin={setOperator} />;
+  if (!currentUser) {
+    return <LoginForm onLogin={handleLogin} />;
   }
+
+  const role = currentUser.role;
+  const canCreateSites = role === 'admin';
+  const canManageFeatures = role === 'admin';
+  const canRecordMeasurements = role === 'admin' || role === 'field-operator';
 
   return (
     <div className="app-shell">
@@ -135,6 +153,7 @@ export default function App() {
           selectedSiteId={selectedSiteId}
           onSelect={handleSelectSite}
           onCreate={handleCreateSite}
+          canCreate={canCreateSites}
         />
       )}
       <main className="content">
@@ -149,7 +168,9 @@ export default function App() {
         ) : (
           <SiteDetail
             site={activeSite}
-            operator={operator}
+            user={currentUser}
+            canManageFeatures={canManageFeatures}
+            canRecordMeasurements={canRecordMeasurements}
             onAddWell={handleAddWell}
             onAddTank={handleAddTank}
             onAddFlowmeter={handleAddFlowmeter}

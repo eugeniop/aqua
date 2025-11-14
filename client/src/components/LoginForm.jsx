@@ -3,6 +3,7 @@ import './LoginForm.css';
 
 export default function LoginForm({ onLogin }) {
   const [operator, setOperator] = useState('');
+  const [role, setRole] = useState('field-operator');
   const [error, setError] = useState('');
 
   const handleSubmit = (event) => {
@@ -12,7 +13,7 @@ export default function LoginForm({ onLogin }) {
       return;
     }
     setError('');
-    onLogin(operator.trim());
+    onLogin({ name: operator.trim(), role });
   };
 
   return (
@@ -29,6 +30,16 @@ export default function LoginForm({ onLogin }) {
           placeholder="e.g. Jane Doe"
           autoComplete="off"
         />
+        <label htmlFor="role">Role</label>
+        <select
+          id="role"
+          value={role}
+          onChange={(event) => setRole(event.target.value)}
+        >
+          <option value="admin">Admin</option>
+          <option value="field-operator">Field operator</option>
+          <option value="analyst">Analyst</option>
+        </select>
         {error && <p className="error">{error}</p>}
         <button type="submit">Continue</button>
       </form>

@@ -87,8 +87,15 @@ workspace/
 
 ## Mock authentication
 
-Authentication is mocked by capturing the operator name on login. The name is added to every
-reading created during the session. Replace this logic with a proper auth provider when needed.
+Authentication is mocked by capturing the operator name and role on login. The selected role is
+sent to the API on every request and enforces the following permissions:
+
+- **Admin** – full access to create sites, register assets and manage all measurements.
+- **Field operator** – can record new measurements and delete ones they created, but cannot add
+  new sites or assets.
+- **Analyst** – read-only access to site details, reports and measurement history.
+
+Replace this logic with a proper auth provider when needed.
 
 ## Production build
 

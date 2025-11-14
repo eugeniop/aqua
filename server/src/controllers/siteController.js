@@ -5,6 +5,7 @@ import Flowmeter from '../models/Flowmeter.js';
 import TankLevelLog from '../models/TankLevelLog.js';
 import FlowmeterReading from '../models/FlowmeterReading.js';
 import WellMeasurement from '../models/WellMeasurement.js';
+import { isAdmin } from '../middleware/auth.js';
 
 const formatDoc = (doc) => ({
   id: doc._id.toString(),
@@ -64,6 +65,10 @@ export const listSites = async (_req, res) => {
 
 export const createSite = async (req, res) => {
   try {
+    if (!isAdmin(req)) {
+      return res.status(403).json({ message: 'Only admins can create sites' });
+    }
+
     const { name, location } = req.body;
     if (!name) {
       return res.status(400).json({ message: 'Name is required' });
@@ -136,6 +141,10 @@ export const getSiteDetail = async (req, res) => {
 
 export const addWell = async (req, res) => {
   try {
+    if (!isAdmin(req)) {
+      return res.status(403).json({ message: 'Only admins can add wells' });
+    }
+
     const { siteId } = req.params;
     const { name, location } = req.body;
     if (!name) {
@@ -151,6 +160,10 @@ export const addWell = async (req, res) => {
 
 export const addTank = async (req, res) => {
   try {
+    if (!isAdmin(req)) {
+      return res.status(403).json({ message: 'Only admins can add tanks' });
+    }
+
     const { siteId } = req.params;
     const { name, capacity } = req.body;
     if (!name || capacity == null) {
@@ -166,6 +179,10 @@ export const addTank = async (req, res) => {
 
 export const addFlowmeter = async (req, res) => {
   try {
+    if (!isAdmin(req)) {
+      return res.status(403).json({ message: 'Only admins can add flowmeters' });
+    }
+
     const { siteId } = req.params;
     const { name, location } = req.body;
     if (!name) {

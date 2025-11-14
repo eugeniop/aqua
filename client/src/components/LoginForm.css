@@ -30,14 +30,16 @@
   font-weight: 600;
 }
 
-.card input {
+.card input,
+.card select {
   padding: 0.6rem 0.75rem;
   border: 1px solid #cbd5f5;
   border-radius: 8px;
   background-color: #f8fafc;
 }
 
-.card input:focus {
+.card input:focus,
+.card select:focus {
   outline: 2px solid #2563eb33;
   border-color: #2563eb;
 }

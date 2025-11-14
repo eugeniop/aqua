@@ -5,6 +5,7 @@ import dotenv from 'dotenv';
 
 import siteRoutes from './routes/sites.js';
 import readingRoutes from './routes/readings.js';
+import { requireAuth } from './middleware/auth.js';
 
 dotenv.config();
 
@@ -17,8 +18,8 @@ app.get('/api/health', (_req, res) => {
   res.json({ status: 'ok' });
 });
 
-app.use('/api/sites', siteRoutes);
-app.use('/api', readingRoutes);
+app.use('/api/sites', requireAuth, siteRoutes);
+app.use('/api', requireAuth, readingRoutes);
 
 const port = process.env.PORT || 4000;
 const mongoUri = process.env.MONGODB_URI || 'mongodb://localhost:27017/aqua';

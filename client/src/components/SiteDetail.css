@@ -23,6 +23,16 @@
   padding: 0.4rem 0.8rem;
   border-radius: 999px;
   font-weight: 600;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.15rem;
+  text-align: right;
+}
+
+.operator-role {
+  font-size: 0.8rem;
+  font-weight: 500;
 }
 
 .asset-grid {
@@ -168,6 +178,11 @@
 .history-delete-button:disabled {
   opacity: 0.6;
   cursor: not-allowed;
+}
+
+.history-no-actions {
+  color: #6b7280;
+  font-size: 0.85rem;
 }
 
 .history-table tbody tr:last-child td {
