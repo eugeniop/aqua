@@ -1,12 +1,34 @@
 import TankLevelLog from '../models/TankLevelLog.js';
 import FlowmeterReading from '../models/FlowmeterReading.js';
 import WellMeasurement from '../models/WellMeasurement.js';
+import { isAdmin, isFieldOperator } from '../middleware/auth.js';
 
 const sanitizeBody = ({ recordedAt, operator, comment }) => ({
   recordedAt: recordedAt ? new Date(recordedAt) : new Date(),
   operator,
   comment
 });
+
+const canRecordEntries = (req) => isAdmin(req) || isFieldOperator(req);
+
+const resolveOperatorName = (req, providedOperator) => {
+  const provided = (providedOperator || '').trim();
+  if (isAdmin(req)) {
+    return provided || req.user?.name || '';
+  }
+  return req.user?.name || '';
+};
+
+const canDeleteEntry = (req, entryOperator) => {
+  if (isAdmin(req)) {
+    return true;
+  }
+  if (isFieldOperator(req)) {
+    const currentOperator = req.user?.name || '';
+    return currentOperator && entryOperator && entryOperator.trim() === currentOperator;
+  }
+  return false;
+};
 
 const parsePagination = (query) => {
   const pageValue = Number.parseInt(query.page, 10);
@@ -71,10 +93,20 @@ const buildHistoryResponse = (items, total, page, limit) => ({
 
 export const recordTankLevel = async (req, res) => {
   try {
+    if (!canRecordEntries(req)) {
+      return res.status(403).json({ message: 'You are not authorised to record tank readings' });
+    }
+
     const { tankId } = req.params;
-    const { level, operator, comment, recordedAt } = req.body;
-    if (level == null || !operator) {
-      return res.status(400).json({ message: 'Level and operator are required' });
+    const { level, comment, recordedAt, operator: providedOperator } = req.body;
+    const operator = resolveOperatorName(req, providedOperator);
+
+    if (level == null) {
+      return res.status(400).json({ message: 'Level is required' });
+    }
+
+    if (!operator) {
+      return res.status(400).json({ message: 'Operator name is required' });
     }
 
     const payload = { ...sanitizeBody({ recordedAt, operator, comment }), tank: tankId, level };
@@ -94,12 +126,30 @@ export const recordTankLevel = async (req, res) => {
 
 export const recordFlowmeterReading = async (req, res) => {
   try {
+    if (!canRecordEntries(req)) {
+      return res
+        .status(403)
+        .json({ message: 'You are not authorised to record flowmeter readings' });
+    }
+
     const { flowmeterId } = req.params;
-    const { instantaneousFlow, totalizedVolume, operator, comment, recordedAt } = req.body;
-    if (instantaneousFlow == null || totalizedVolume == null || !operator) {
+    const {
+      instantaneousFlow,
+      totalizedVolume,
+      comment,
+      recordedAt,
+      operator: providedOperator
+    } = req.body;
+    const operator = resolveOperatorName(req, providedOperator);
+
+    if (instantaneousFlow == null || totalizedVolume == null) {
       return res
         .status(400)
-        .json({ message: 'Instantaneous flow, totalized volume and operator are required' });
+        .json({ message: 'Instantaneous flow and totalized volume are required' });
+    }
+
+    if (!operator) {
+      return res.status(400).json({ message: 'Operator name is required' });
     }
 
     const payload = {
@@ -127,10 +177,22 @@ export const recordFlowmeterReading = async (req, res) => {
 
 export const recordWellMeasurement = async (req, res) => {
   try {
+    if (!canRecordEntries(req)) {
+      return res
+        .status(403)
+        .json({ message: 'You are not authorised to record well measurements' });
+    }
+
     const { wellId } = req.params;
-    const { depth, operator, comment, recordedAt } = req.body;
-    if (depth == null || !operator) {
-      return res.status(400).json({ message: 'Depth and operator are required' });
+    const { depth, comment, recordedAt, operator: providedOperator } = req.body;
+    const operator = resolveOperatorName(req, providedOperator);
+
+    if (depth == null) {
+      return res.status(400).json({ message: 'Depth is required' });
+    }
+
+    if (!operator) {
+      return res.status(400).json({ message: 'Operator name is required' });
     }
 
     const payload = { ...sanitizeBody({ recordedAt, operator, comment }), well: wellId, depth };
@@ -220,10 +282,14 @@ export const listWellMeasurements = async (req, res) => {
 export const deleteTankReading = async (req, res) => {
   try {
     const { tankId, readingId } = req.params;
-    const deleted = await TankLevelLog.findOneAndDelete({ _id: readingId, tank: tankId });
-    if (!deleted) {
+    const reading = await TankLevelLog.findOne({ _id: readingId, tank: tankId });
+    if (!reading) {
       return res.status(404).json({ message: 'Tank reading not found' });
     }
+    if (!canDeleteEntry(req, reading.operator)) {
+      return res.status(403).json({ message: 'You are not authorised to delete this reading' });
+    }
+    await reading.deleteOne();
     res.status(204).send();
   } catch (error) {
     res.status(500).json({ message: 'Unable to delete tank reading', error: error.message });
@@ -233,13 +299,17 @@ export const deleteTankReading = async (req, res) => {
 export const deleteFlowmeterReading = async (req, res) => {
   try {
     const { flowmeterId, readingId } = req.params;
-    const deleted = await FlowmeterReading.findOneAndDelete({
+    const reading = await FlowmeterReading.findOne({
       _id: readingId,
       flowmeter: flowmeterId
     });
-    if (!deleted) {
+    if (!reading) {
       return res.status(404).json({ message: 'Flowmeter reading not found' });
     }
+    if (!canDeleteEntry(req, reading.operator)) {
+      return res.status(403).json({ message: 'You are not authorised to delete this reading' });
+    }
+    await reading.deleteOne();
     res.status(204).send();
   } catch (error) {
     res.status(500).json({ message: 'Unable to delete flowmeter reading', error: error.message });
@@ -249,10 +319,16 @@ export const deleteFlowmeterReading = async (req, res) => {
 export const deleteWellMeasurement = async (req, res) => {
   try {
     const { wellId, measurementId } = req.params;
-    const deleted = await WellMeasurement.findOneAndDelete({ _id: measurementId, well: wellId });
-    if (!deleted) {
+    const measurement = await WellMeasurement.findOne({ _id: measurementId, well: wellId });
+    if (!measurement) {
       return res.status(404).json({ message: 'Well measurement not found' });
     }
+    if (!canDeleteEntry(req, measurement.operator)) {
+      return res
+        .status(403)
+        .json({ message: 'You are not authorised to delete this measurement' });
+    }
+    await measurement.deleteOne();
     res.status(204).send();
   } catch (error) {
     res.status(500).json({ message: 'Unable to delete well measurement', error: error.message });

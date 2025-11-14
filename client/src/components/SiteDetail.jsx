@@ -22,6 +22,12 @@ const typeLabels = {
   flowmeter: 'Flowmeter'
 };
 
+const roleLabels = {
+  admin: 'Admin',
+  'field-operator': 'Field operator',
+  analyst: 'Analyst'
+};
+
 const HISTORY_PAGE_SIZE = 5;
 
 const defaultVisibleTypes = {
@@ -148,7 +154,9 @@ const initialHistoryState = {
 
 export default function SiteDetail({
   site,
-  operator,
+  user,
+  canManageFeatures = false,
+  canRecordMeasurements = false,
   onAddWell,
   onAddTank,
   onAddFlowmeter,
@@ -179,6 +187,40 @@ export default function SiteDetail({
   const [historyFilters, setHistoryFilters] = useState({ from: '', to: '' });
   const [historyControlsError, setHistoryControlsError] = useState('');
   const [historyDownloading, setHistoryDownloading] = useState(false);
+
+  const userName = user?.name || '';
+  const userRole = user?.role || '';
+  const userRoleLabel = roleLabels[userRole] || 'Unknown role';
+  const displayUserName = userName || 'Unknown operator';
+
+  const canDeleteHistoryItem = (item) => {
+    if (userRole === 'admin') {
+      return true;
+    }
+    if (userRole === 'field-operator') {
+      const entryOperator = item.operator?.trim();
+      return entryOperator && userName && entryOperator === userName;
+    }
+    return false;
+  };
+
+  useEffect(() => {
+    if (!canManageFeatures) {
+      setCreateModal(null);
+      setCreateError('');
+      setCreateForm({});
+      setCreateSubmitting(false);
+    }
+  }, [canManageFeatures]);
+
+  useEffect(() => {
+    if (!canRecordMeasurements) {
+      setRecordModal(null);
+      setRecordError('');
+      setRecordForm({});
+      setRecordSubmitting(false);
+    }
+  }, [canRecordMeasurements]);
 
   useEffect(() => {
     setCreateModal(null);
@@ -357,6 +399,14 @@ export default function SiteDetail({
 
   const handleHistoryDelete = async (item) => {
     if (!historyModal) {
+      return;
+    }
+
+    if (!canDeleteHistoryItem(item)) {
+      setHistoryState((prev) => ({
+        ...prev,
+        error: 'You do not have permission to delete this entry.'
+      }));
       return;
     }
 
@@ -596,6 +646,9 @@ export default function SiteDetail({
   }
 
   const openCreateModal = (type) => {
+    if (!canManageFeatures) {
+      return;
+    }
     setCreateModal(type);
     setCreateError('');
     if (type === 'well') {
@@ -608,6 +661,9 @@ export default function SiteDetail({
   };
 
   const openRecordModal = (type, feature) => {
+    if (!canRecordMeasurements) {
+      return;
+    }
     setRecordModal({ type, feature });
     setRecordError('');
     if (type === 'well') {
@@ -653,6 +709,11 @@ export default function SiteDetail({
   const handleCreateSubmit = async (event) => {
     event.preventDefault();
     if (!createModal) {
+      return;
+    }
+
+    if (!canManageFeatures) {
+      setCreateError('You do not have permission to add new features.');
       return;
     }
 
@@ -732,6 +793,16 @@ export default function SiteDetail({
       return;
     }
 
+    if (!canRecordMeasurements) {
+      setRecordError('You do not have permission to record entries.');
+      return;
+    }
+
+    if (!userName) {
+      setRecordError('Your user name is required to record entries.');
+      return;
+    }
+
     const { type, feature } = recordModal;
 
     if (type === 'well') {
@@ -746,7 +817,7 @@ export default function SiteDetail({
           depth: Number(recordForm.depth),
           comment: recordForm.comment?.trim() || undefined,
           recordedAt: recordForm.recordedAt ? new Date(recordForm.recordedAt).toISOString() : undefined,
-          operator
+          operator: userName
         });
         setRecordModal(null);
         setRecordError('');
@@ -771,7 +842,7 @@ export default function SiteDetail({
           level: Number(recordForm.level),
           comment: recordForm.comment?.trim() || undefined,
           recordedAt: recordForm.recordedAt ? new Date(recordForm.recordedAt).toISOString() : undefined,
-          operator
+          operator: userName
         });
         setRecordModal(null);
         setRecordError('');
@@ -797,7 +868,7 @@ export default function SiteDetail({
           totalizedVolume: Number(recordForm.totalizedVolume),
           comment: recordForm.comment?.trim() || undefined,
           recordedAt: recordForm.recordedAt ? new Date(recordForm.recordedAt).toISOString() : undefined,
-          operator
+          operator: userName
         });
         setRecordModal(null);
         setRecordError('');
@@ -819,24 +890,33 @@ export default function SiteDetail({
           {site.location && <p className="meta">{site.location}</p>}
         </div>
         <div className="operator-chip">
-          Logged in as <strong>{operator}</strong>
+          <span>
+            Logged in as <strong>{displayUserName}</strong>
+          </span>
+          <span className="operator-role">Role: {userRoleLabel}</span>
         </div>
       </header>
 
       <section className="site-actions">
         <h2>Quick actions</h2>
-        <p className="actions-help">Add new assets directly from here.</p>
-        <div className="site-actions-buttons">
-          <button type="button" onClick={() => openCreateModal('well')}>
-            Add well
-          </button>
-          <button type="button" onClick={() => openCreateModal('tank')}>
-            Add tank
-          </button>
-          <button type="button" onClick={() => openCreateModal('flowmeter')}>
-            Add flowmeter
-          </button>
-        </div>
+        {canManageFeatures ? (
+          <>
+            <p className="actions-help">Add new assets directly from here.</p>
+            <div className="site-actions-buttons">
+              <button type="button" onClick={() => openCreateModal('well')}>
+                Add well
+              </button>
+              <button type="button" onClick={() => openCreateModal('tank')}>
+                Add tank
+              </button>
+              <button type="button" onClick={() => openCreateModal('flowmeter')}>
+                Add flowmeter
+              </button>
+            </div>
+          </>
+        ) : (
+          <p className="actions-help">You do not have permission to add new assets.</p>
+        )}
       </section>
 
       <section className="feature-summary">
@@ -872,7 +952,9 @@ export default function SiteDetail({
                     key={`well-${feature.data.id}`}
                     well={feature.data}
                     onViewHistory={(well) => openHistoryModal('well', well)}
-                    onAddMeasurement={(well) => openRecordModal('well', well)}
+                    onAddMeasurement={
+                      canRecordMeasurements ? (well) => openRecordModal('well', well) : undefined
+                    }
                   />
                 );
               }
@@ -882,7 +964,9 @@ export default function SiteDetail({
                     key={`tank-${feature.data.id}`}
                     tank={feature.data}
                     onViewHistory={(tank) => openHistoryModal('tank', tank)}
-                    onAddReading={(tank) => openRecordModal('tank', tank)}
+                    onAddReading={
+                      canRecordMeasurements ? (tank) => openRecordModal('tank', tank) : undefined
+                    }
                   />
                 );
               }
@@ -891,7 +975,11 @@ export default function SiteDetail({
                   key={`flowmeter-${feature.data.id}`}
                   flowmeter={feature.data}
                   onViewHistory={(flowmeter) => openHistoryModal('flowmeter', flowmeter)}
-                  onAddReading={(flowmeter) => openRecordModal('flowmeter', flowmeter)}
+                  onAddReading={
+                    canRecordMeasurements
+                      ? (flowmeter) => openRecordModal('flowmeter', flowmeter)
+                      : undefined
+                  }
                 />
               );
             })}
@@ -1035,14 +1123,18 @@ export default function SiteDetail({
                             <td key={column.key}>{column.render(item)}</td>
                           ))}
                           <td className="history-actions-column">
-                            <button
-                              type="button"
-                              className="history-delete-button"
-                              onClick={() => handleHistoryDelete(item)}
-                              disabled={historyDeletingId === item.id || historyState.loading}
-                            >
-                              {historyDeletingId === item.id ? 'Deleting…' : 'Delete'}
-                            </button>
+                            {canDeleteHistoryItem(item) ? (
+                              <button
+                                type="button"
+                                className="history-delete-button"
+                                onClick={() => handleHistoryDelete(item)}
+                                disabled={historyDeletingId === item.id || historyState.loading}
+                              >
+                                {historyDeletingId === item.id ? 'Deleting…' : 'Delete'}
+                              </button>
+                            ) : (
+                              <span className="history-no-actions">—</span>
+                            )}
                           </td>
                         </tr>
                       ))}
@@ -1229,7 +1321,9 @@ export default function SiteDetail({
                 placeholder="Add any notes"
               />
             </label>
-            <p className="operator-reminder">Logged in as {operator}</p>
+            <p className="operator-reminder">
+              Logged in as {displayUserName} ({userRoleLabel})
+            </p>
             {recordError && <p className="form-error">{recordError}</p>}
           </form>
         </Modal>
