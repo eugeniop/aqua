@@ -149,7 +149,8 @@ const initialHistoryState = {
   error: '',
   items: [],
   total: 0,
-  limit: HISTORY_PAGE_SIZE
+  limit: HISTORY_PAGE_SIZE,
+  operators: []
 };
 
 export default function SiteDetail({
@@ -164,6 +165,12 @@ export default function SiteDetail({
   onRecordFlowmeter,
   onRecordWell
 }) {
+  const userName = (user?.name || '').trim();
+  const userRole = user?.role || '';
+  const userRoleLabel = roleLabels[userRole] || 'Unknown role';
+  const displayUserName = userName || 'Unknown operator';
+  const defaultOperatorFilter = () => userName;
+
   const [createModal, setCreateModal] = useState(null);
   const [createForm, setCreateForm] = useState({});
   const [createError, setCreateError] = useState('');
@@ -183,15 +190,18 @@ export default function SiteDetail({
   const [historyView, setHistoryView] = useState('table');
   const [chartForm, setChartForm] = useState({ from: '', to: '' });
   const [chartState, setChartState] = useState({ loading: false, error: '', items: [] });
-  const [historyFilterForm, setHistoryFilterForm] = useState({ from: '', to: '' });
-  const [historyFilters, setHistoryFilters] = useState({ from: '', to: '' });
+  const [historyFilterForm, setHistoryFilterForm] = useState({
+    from: '',
+    to: '',
+    operator: defaultOperatorFilter()
+  });
+  const [historyFilters, setHistoryFilters] = useState({
+    from: '',
+    to: '',
+    operator: defaultOperatorFilter()
+  });
   const [historyControlsError, setHistoryControlsError] = useState('');
   const [historyDownloading, setHistoryDownloading] = useState(false);
-
-  const userName = user?.name || '';
-  const userRole = user?.role || '';
-  const userRoleLabel = roleLabels[userRole] || 'Unknown role';
-  const displayUserName = userName || 'Unknown operator';
 
   const canDeleteHistoryItem = (item) => {
     if (userRole === 'admin') {
@@ -237,8 +247,8 @@ export default function SiteDetail({
     setHistoryState({ ...initialHistoryState });
     setHistoryReloadToken(0);
     setHistoryDeletingId(null);
-    setHistoryFilterForm({ from: '', to: '' });
-    setHistoryFilters({ from: '', to: '' });
+    setHistoryFilterForm({ from: '', to: '', operator: defaultOperatorFilter() });
+    setHistoryFilters({ from: '', to: '', operator: defaultOperatorFilter() });
     setHistoryControlsError('');
     setHistoryDownloading(false);
   }, [site?.id]);
@@ -287,6 +297,9 @@ export default function SiteDetail({
           page: historyPage,
           limit: HISTORY_PAGE_SIZE
         };
+        if (historyFilters.operator) {
+          params.operator = historyFilters.operator;
+        }
         if (historyFilters.from) {
           const fromDate = new Date(historyFilters.from);
           if (!Number.isNaN(fromDate.getTime())) {
@@ -313,7 +326,8 @@ export default function SiteDetail({
           error: '',
           items: result.items ?? [],
           total: result.total ?? 0,
-          limit: result.limit ?? HISTORY_PAGE_SIZE
+          limit: result.limit ?? HISTORY_PAGE_SIZE,
+          operators: result.operators ?? []
         });
       } catch (error) {
         if (cancelled) {
@@ -344,8 +358,8 @@ export default function SiteDetail({
     setHistoryView('table');
     setChartForm({ from: '', to: '' });
     setChartState({ loading: false, error: '', items: [] });
-    setHistoryFilterForm({ from: '', to: '' });
-    setHistoryFilters({ from: '', to: '' });
+    setHistoryFilterForm({ from: '', to: '', operator: defaultOperatorFilter() });
+    setHistoryFilters({ from: '', to: '', operator: defaultOperatorFilter() });
     setHistoryControlsError('');
     setHistoryDownloading(false);
   };
@@ -359,8 +373,8 @@ export default function SiteDetail({
     setHistoryView('table');
     setChartForm({ from: '', to: '' });
     setChartState({ loading: false, error: '', items: [] });
-    setHistoryFilterForm({ from: '', to: '' });
-    setHistoryFilters({ from: '', to: '' });
+    setHistoryFilterForm({ from: '', to: '', operator: defaultOperatorFilter() });
+    setHistoryFilters({ from: '', to: '', operator: defaultOperatorFilter() });
     setHistoryControlsError('');
     setHistoryDownloading(false);
   };
@@ -390,6 +404,13 @@ export default function SiteDetail({
         )
       : 0;
   const historySummaryLabel = historyModal ? historyTypeLabels[historyModal.type].toLowerCase() : '';
+  const historyOperators = useMemo(() => {
+    const options = new Set(historyState.operators || []);
+    if (userName) {
+      options.add(userName);
+    }
+    return Array.from(options).sort((a, b) => a.localeCompare(b));
+  }, [historyState.operators, userName]);
 
   const historyDeleteHandlers = {
     well: deleteWellMeasurement,
@@ -448,7 +469,7 @@ export default function SiteDetail({
       return;
     }
 
-    const { from, to } = historyFilterForm;
+    const { from, to, operator } = historyFilterForm;
     if (from && to) {
       const fromDate = new Date(from);
       const toDate = new Date(to);
@@ -459,13 +480,20 @@ export default function SiteDetail({
     }
 
     setHistoryControlsError('');
-    setHistoryFilters({ from, to });
+    setHistoryFilters({ from, to, operator });
     setHistoryPage(1);
   };
 
   const handleHistoryFilterReset = () => {
-    setHistoryFilterForm({ from: '', to: '' });
-    setHistoryFilters({ from: '', to: '' });
+    setHistoryFilterForm({ from: '', to: '', operator: defaultOperatorFilter() });
+    setHistoryFilters({ from: '', to: '', operator: defaultOperatorFilter() });
+    setHistoryControlsError('');
+    setHistoryPage(1);
+  };
+
+  const handleHistoryOperatorSelect = (operator) => {
+    setHistoryFilterForm((prev) => ({ ...prev, operator }));
+    setHistoryFilters((prev) => ({ ...prev, operator }));
     setHistoryControlsError('');
     setHistoryPage(1);
   };
@@ -486,6 +514,9 @@ export default function SiteDetail({
 
     try {
       const params = { page: 1, limit: 500, order: 'desc' };
+      if (historyFilters.operator) {
+        params.operator = historyFilters.operator;
+      }
       if (historyFilters.from) {
         const fromDate = new Date(historyFilters.from);
         if (!Number.isNaN(fromDate.getTime())) {
@@ -1048,13 +1079,40 @@ export default function SiteDetail({
                 ) : chartState.loading && chartState.items.length === 0 ? (
                   <p className="history-status">Loading chart…</p>
                 ) : (
-                  <HistoryChart
-                    data={chartState.items}
-                    series={chartSeriesConfig[historyModal.type] || []}
-                  />
-                )}
+              <HistoryChart
+                data={chartState.items}
+                series={chartSeriesConfig[historyModal.type] || []}
+              />
+            )}
+          </div>
+        ) : (
+          <div className="history-table-view">
+            <div className="history-operator-filter">
+              <div className="history-operator-label">Filter by operator</div>
+              <div className="history-operator-buttons">
+                <button
+                  type="button"
+                  className={`history-operator-button${historyFilters.operator ? '' : ' active'}`}
+                  onClick={() => handleHistoryOperatorSelect('')}
+                  disabled={historyState.loading}
+                >
+                  All operators
+                </button>
+                {historyOperators.map((operator) => (
+                  <button
+                    key={operator}
+                    type="button"
+                    className={`history-operator-button${historyFilters.operator === operator ? ' active' : ''}`}
+                    onClick={() => handleHistoryOperatorSelect(operator)}
+                    disabled={historyState.loading}
+                  >
+                    {operator}
+                  </button>
+                ))}
               </div>
-            ) : historyState.loading ? (
+            </div>
+
+            {historyState.loading ? (
               <p className="history-status">Loading history…</p>
             ) : historyState.error ? (
               <p className="form-error">{historyState.error}</p>
@@ -1105,7 +1163,9 @@ export default function SiteDetail({
                     {historyDownloading ? 'Downloading…' : 'Download CSV'}
                   </button>
                 </div>
-                {historyControlsError && <p className="form-error history-controls-error">{historyControlsError}</p>}
+                {historyControlsError && (
+                  <p className="form-error history-controls-error">{historyControlsError}</p>
+                )}
                 <div className="history-table-wrapper">
                   <table className="history-table">
                     <thead>
@@ -1166,8 +1226,10 @@ export default function SiteDetail({
               </>
             )}
           </div>
-        </div>
-      )}
+        )}
+      </div>
+    </div>
+  )}
 
       {createModal && (
         <Modal
