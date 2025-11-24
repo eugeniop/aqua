@@ -58,6 +58,10 @@ const parseDateRange = (query) => {
 
 const buildHistoryFilter = (baseFilter, query) => {
   const filter = { ...baseFilter };
+  const operator = (query.operator || '').trim();
+  if (operator) {
+    filter.operator = operator;
+  }
   const { from, to } = parseDateRange(query);
   if (from || to) {
     filter.recordedAt = {};
@@ -69,6 +73,14 @@ const buildHistoryFilter = (baseFilter, query) => {
     }
   }
   return filter;
+};
+
+const listOperatorsFor = async (Model, baseFilter) => {
+  const operators = await Model.distinct('operator', baseFilter);
+  return operators
+    .map((name) => (name || '').trim())
+    .filter(Boolean)
+    .sort((a, b) => a.localeCompare(b));
 };
 
 const parseSortOrder = (query) => (query.order === 'asc' ? 1 : -1);
@@ -84,11 +96,12 @@ const formatHistoryEntry = (doc) => ({
   depth: doc.depth ?? undefined
 });
 
-const buildHistoryResponse = (items, total, page, limit) => ({
+const buildHistoryResponse = (items, total, page, limit, operators = []) => ({
   items: items.map(formatHistoryEntry),
   total,
   page,
-  limit
+  limit,
+  operators
 });
 
 export const recordTankLevel = async (req, res) => {
@@ -217,17 +230,19 @@ export const listTankReadings = async (req, res) => {
     const { page, limit } = parsePagination(query);
     const skip = (page - 1) * limit;
     const sortOrder = parseSortOrder(query);
-    const filter = buildHistoryFilter({ tank: tankId }, query);
+    const baseFilter = { tank: tankId };
+    const filter = buildHistoryFilter(baseFilter, query);
 
-    const [readings, total] = await Promise.all([
+    const [readings, total, operators] = await Promise.all([
       TankLevelLog.find(filter)
         .sort({ recordedAt: sortOrder })
         .skip(skip)
         .limit(limit),
-      TankLevelLog.countDocuments(filter)
+      TankLevelLog.countDocuments(filter),
+      listOperatorsFor(TankLevelLog, baseFilter)
     ]);
 
-    res.json(buildHistoryResponse(readings, total, page, limit));
+    res.json(buildHistoryResponse(readings, total, page, limit, operators));
   } catch (error) {
     res.status(500).json({ message: 'Unable to load tank readings', error: error.message });
   }
@@ -240,17 +255,19 @@ export const listFlowmeterReadings = async (req, res) => {
     const { page, limit } = parsePagination(query);
     const skip = (page - 1) * limit;
     const sortOrder = parseSortOrder(query);
-    const filter = buildHistoryFilter({ flowmeter: flowmeterId }, query);
+    const baseFilter = { flowmeter: flowmeterId };
+    const filter = buildHistoryFilter(baseFilter, query);
 
-    const [readings, total] = await Promise.all([
+    const [readings, total, operators] = await Promise.all([
       FlowmeterReading.find(filter)
         .sort({ recordedAt: sortOrder })
         .skip(skip)
         .limit(limit),
-      FlowmeterReading.countDocuments(filter)
+      FlowmeterReading.countDocuments(filter),
+      listOperatorsFor(FlowmeterReading, baseFilter)
     ]);
 
-    res.json(buildHistoryResponse(readings, total, page, limit));
+    res.json(buildHistoryResponse(readings, total, page, limit, operators));
   } catch (error) {
     res.status(500).json({ message: 'Unable to load flowmeter readings', error: error.message });
   }
@@ -263,17 +280,19 @@ export const listWellMeasurements = async (req, res) => {
     const { page, limit } = parsePagination(query);
     const skip = (page - 1) * limit;
     const sortOrder = parseSortOrder(query);
-    const filter = buildHistoryFilter({ well: wellId }, query);
+    const baseFilter = { well: wellId };
+    const filter = buildHistoryFilter(baseFilter, query);
 
-    const [measurements, total] = await Promise.all([
+    const [measurements, total, operators] = await Promise.all([
       WellMeasurement.find(filter)
         .sort({ recordedAt: sortOrder })
         .skip(skip)
         .limit(limit),
-      WellMeasurement.countDocuments(filter)
+      WellMeasurement.countDocuments(filter),
+      listOperatorsFor(WellMeasurement, baseFilter)
     ]);
 
-    res.json(buildHistoryResponse(measurements, total, page, limit));
+    res.json(buildHistoryResponse(measurements, total, page, limit, operators));
   } catch (error) {
     res.status(500).json({ message: 'Unable to load well measurements', error: error.message });
   }
