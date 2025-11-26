@@ -1,38 +1,48 @@
 import './AssetCards.css';
+import { useTranslation } from '../i18n/LocalizationProvider.jsx';
 
 const formatDate = (value) => (value ? new Date(value).toLocaleString() : '—');
 
 export default function WellCard({ well, onViewHistory, onAddMeasurement }) {
+  const { t } = useTranslation();
   return (
     <div className="asset-card">
       <header>
         <div>
           <h3>{well.name}</h3>
-          <p className="asset-type">Well</p>
-          {well.location && <p className="meta">Location: {well.location}</p>}
+          <p className="asset-type">{t('Well')}</p>
+          {well.location && (
+            <p className="meta">{t('Location: {location}', { location: well.location })}</p>
+          )}
         </div>
       </header>
       <section className="latest">
-        <h4>Latest measurement</h4>
+        <h4>{t('Latest measurement')}</h4>
         {well.latestMeasurement ? (
           <ul>
-            <li>Depth to water: {Number(well.latestMeasurement.depth).toFixed(2)} m</li>
-            <li>Recorded: {formatDate(well.latestMeasurement.recordedAt)}</li>
-            <li>Operator: {well.latestMeasurement.operator}</li>
-            {well.latestMeasurement.comment && <li>Notes: {well.latestMeasurement.comment}</li>}
+            <li>
+              {t('Depth to water: {value} m', {
+                value: Number(well.latestMeasurement.depth).toFixed(2)
+              })}
+            </li>
+            <li>{t('Recorded: {value}', { value: formatDate(well.latestMeasurement.recordedAt) })}</li>
+            <li>{t('Operator: {name}', { name: well.latestMeasurement.operator })}</li>
+            {well.latestMeasurement.comment && (
+              <li>{t('Notes: {comment}', { comment: well.latestMeasurement.comment })}</li>
+            )}
           </ul>
         ) : (
-          <p className="empty">No measurements yet.</p>
+          <p className="empty">{t('No measurements yet.')}</p>
         )}
       </section>
       <div className="card-actions">
         {onAddMeasurement && (
           <button type="button" onClick={() => onAddMeasurement(well)}>
-            Add measurement
+            {t('Add measurement')}
           </button>
         )}
         <button type="button" className="ghost" onClick={() => onViewHistory(well)}>
-          View measurements
+          {t('View measurements')}
         </button>
       </div>
     </div>

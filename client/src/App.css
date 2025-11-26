@@ -14,7 +14,9 @@
 
 .content-header {
   display: flex;
-  justify-content: flex-end;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
   padding: 1rem 1.5rem 0;
 }
 
@@ -28,6 +30,40 @@
   cursor: pointer;
   box-shadow: 0 10px 25px rgba(37, 99, 235, 0.15);
   transition: background 0.2s ease, transform 0.2s ease;
+}
+
+.settings-panel {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.75rem;
+  background: #ffffff;
+  padding: 0.6rem 0.9rem;
+  border-radius: 12px;
+  box-shadow: 0 10px 25px rgba(15, 23, 42, 0.08);
+  border: 1px solid #e2e8f0;
+}
+
+.settings-panel label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  font-weight: 600;
+  color: #0f172a;
+  font-size: 0.95rem;
+}
+
+.settings-panel select {
+  padding: 0.45rem 0.55rem;
+  border-radius: 8px;
+  border: 1px solid #cbd5e1;
+  background: #f8fafc;
+  font-size: 0.95rem;
+}
+
+.settings-title {
+  font-weight: 700;
+  color: #1e293b;
+  font-size: 1rem;
 }
 
 .toggle-panel:hover {

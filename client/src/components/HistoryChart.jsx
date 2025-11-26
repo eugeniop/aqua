@@ -1,4 +1,5 @@
 import { useMemo } from 'react';
+import { useTranslation } from '../i18n/LocalizationProvider.jsx';
 import './HistoryChart.css';
 
 const PADDING = { top: 16, right: 24, bottom: 40, left: 56 };
@@ -45,6 +46,7 @@ const buildTicks = (start, end, count) => {
 };
 
 export default function HistoryChart({ data, series = [], width = WIDTH, height = HEIGHT }) {
+  const { t } = useTranslation();
   const prepared = useMemo(() => {
     const parsed = (data || [])
       .map((item) => {
@@ -91,7 +93,7 @@ export default function HistoryChart({ data, series = [], width = WIDTH, height 
   if (allPoints.length < 2) {
     return (
       <div className="history-chart-empty">
-        <p>Not enough data to display a chart yet.</p>
+        <p>{t('Not enough data to display a chart yet.')}</p>
       </div>
     );
   }
@@ -112,7 +114,7 @@ export default function HistoryChart({ data, series = [], width = WIDTH, height 
 
   return (
     <div className="history-chart">
-      <svg viewBox={`0 0 ${width} ${height}`} role="img" aria-label="Chart of historical readings">
+      <svg viewBox={`0 0 ${width} ${height}`} role="img" aria-label={t('History chart data')}>
         <rect
           x={PADDING.left}
           y={PADDING.top}
