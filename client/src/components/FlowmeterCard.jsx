@@ -1,39 +1,49 @@
 import './AssetCards.css';
+import { useTranslation } from '../i18n/LocalizationProvider.jsx';
 
 const formatDate = (value) => (value ? new Date(value).toLocaleString() : '—');
 
 export default function FlowmeterCard({ flowmeter, onViewHistory, onAddReading }) {
+  const { t } = useTranslation();
   return (
     <div className="asset-card">
       <header>
         <div>
           <h3>{flowmeter.name}</h3>
-          <p className="asset-type">Flowmeter</p>
-          {flowmeter.location && <p className="meta">Location: {flowmeter.location}</p>}
+          <p className="asset-type">{t('Flowmeter')}</p>
+          {flowmeter.location && (
+            <p className="meta">{t('Location: {location}', { location: flowmeter.location })}</p>
+          )}
         </div>
       </header>
       <section className="latest">
-        <h4>Latest reading</h4>
+        <h4>{t('Latest reading')}</h4>
         {flowmeter.latestReading ? (
           <ul>
-            <li>Instantaneous: {flowmeter.latestReading.instantaneousFlow} L/min</li>
-            <li>Totalized volume: {flowmeter.latestReading.totalizedVolume} L</li>
-            <li>Recorded: {formatDate(flowmeter.latestReading.recordedAt)}</li>
-            <li>Operator: {flowmeter.latestReading.operator}</li>
-            {flowmeter.latestReading.comment && <li>Notes: {flowmeter.latestReading.comment}</li>}
+            <li>
+              {t('Instantaneous: {value} L/min', {
+                value: flowmeter.latestReading.instantaneousFlow
+              })}
+            </li>
+            <li>{t('Totalized volume: {value} L', { value: flowmeter.latestReading.totalizedVolume })}</li>
+            <li>{t('Recorded: {value}', { value: formatDate(flowmeter.latestReading.recordedAt) })}</li>
+            <li>{t('Operator: {name}', { name: flowmeter.latestReading.operator })}</li>
+            {flowmeter.latestReading.comment && (
+              <li>{t('Notes: {comment}', { comment: flowmeter.latestReading.comment })}</li>
+            )}
           </ul>
         ) : (
-          <p className="empty">No readings yet.</p>
+          <p className="empty">{t('No readings yet.')}</p>
         )}
       </section>
       <div className="card-actions">
         {onAddReading && (
           <button type="button" onClick={() => onAddReading(flowmeter)}>
-            Add reading
+            {t('Add reading')}
           </button>
         )}
         <button type="button" className="ghost" onClick={() => onViewHistory(flowmeter)}>
-          View readings
+          {t('View readings')}
         </button>
       </div>
     </div>

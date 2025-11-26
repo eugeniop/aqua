@@ -1,10 +1,12 @@
 import { useEffect, useState } from 'react';
+import { useTranslation } from '../i18n/LocalizationProvider.jsx';
 import './SiteList.css';
 
 export default function SiteList({ sites, selectedSiteId, onSelect, onCreate, canCreate = false }) {
   const [isCreating, setIsCreating] = useState(false);
   const [form, setForm] = useState({ name: '', location: '' });
   const [error, setError] = useState('');
+  const { t } = useTranslation();
 
   useEffect(() => {
     if (!canCreate) {
@@ -29,7 +31,7 @@ export default function SiteList({ sites, selectedSiteId, onSelect, onCreate, ca
       return;
     }
     if (!form.name.trim()) {
-      setError('Site name is required.');
+      setError(t('Site name is required.'));
       return;
     }
 
@@ -37,24 +39,24 @@ export default function SiteList({ sites, selectedSiteId, onSelect, onCreate, ca
       await onCreate({ name: form.name.trim(), location: form.location.trim() || undefined });
       toggleCreate();
     } catch (err) {
-      setError(err.message || 'Unable to create site');
+      setError(err.message || t('Unable to create site'));
     }
   };
 
   return (
     <div className="site-panel">
       <div className="panel-header">
-        <h2>Sites</h2>
+        <h2>{t('Sites')}</h2>
         {canCreate && (
           <button type="button" onClick={toggleCreate} className="link-btn">
-            {isCreating ? 'Cancel' : 'Add site'}
+            {isCreating ? t('Cancel') : t('Add site')}
           </button>
         )}
       </div>
       {isCreating && canCreate && (
         <form className="site-form" onSubmit={submitNewSite}>
           <label>
-            Name
+            {t('Name')}
             <input
               type="text"
               value={form.name}
@@ -63,21 +65,21 @@ export default function SiteList({ sites, selectedSiteId, onSelect, onCreate, ca
             />
           </label>
           <label>
-            Location
+            {t('Location')}
             <input
               type="text"
               value={form.location}
               onChange={(event) => setForm((prev) => ({ ...prev, location: event.target.value }))}
-              placeholder="Optional"
+              placeholder={t('Optional')}
             />
           </label>
           {error && <p className="error">{error}</p>}
-          <button type="submit">Save site</button>
+          <button type="submit">{t('Save site')}</button>
         </form>
       )}
       <ul className="site-list">
         {sites.length === 0 ? (
-          <li className="empty">No sites yet.</li>
+          <li className="empty">{t('No sites yet.')}</li>
         ) : (
           sites.map((site) => (
             <li key={site.id}>

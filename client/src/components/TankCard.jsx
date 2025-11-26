@@ -1,39 +1,43 @@
 import './AssetCards.css';
+import { useTranslation } from '../i18n/LocalizationProvider.jsx';
 
 const formatDate = (value) => (value ? new Date(value).toLocaleString() : '—');
 
 export default function TankCard({ tank, onViewHistory, onAddReading }) {
+  const { t } = useTranslation();
   return (
     <div className="asset-card">
       <header>
         <div>
           <h3>{tank.name}</h3>
-          <p className="asset-type">Tank</p>
-          <p className="meta">Capacity: {tank.capacity?.toLocaleString()} L</p>
-          {tank.location && <p className="meta">Location: {tank.location}</p>}
+          <p className="asset-type">{t('Tank')}</p>
+          <p className="meta">{t('Capacity: {value} L', { value: tank.capacity?.toLocaleString() })}</p>
+          {tank.location && (
+            <p className="meta">{t('Location: {location}', { location: tank.location })}</p>
+          )}
         </div>
       </header>
       <section className="latest">
-        <h4>Latest reading</h4>
+        <h4>{t('Latest reading')}</h4>
         {tank.latestReading ? (
           <ul>
-            <li>Level: {tank.latestReading.level} L</li>
-            <li>Recorded: {formatDate(tank.latestReading.recordedAt)}</li>
-            <li>Operator: {tank.latestReading.operator}</li>
-            {tank.latestReading.comment && <li>Notes: {tank.latestReading.comment}</li>}
+            <li>{t('Level: {value} L', { value: tank.latestReading.level })}</li>
+            <li>{t('Recorded: {value}', { value: formatDate(tank.latestReading.recordedAt) })}</li>
+            <li>{t('Operator: {name}', { name: tank.latestReading.operator })}</li>
+            {tank.latestReading.comment && <li>{t('Notes: {comment}', { comment: tank.latestReading.comment })}</li>}
           </ul>
         ) : (
-          <p className="empty">No readings yet.</p>
+          <p className="empty">{t('No readings yet.')}</p>
         )}
       </section>
       <div className="card-actions">
         {onAddReading && (
           <button type="button" onClick={() => onAddReading(tank)}>
-            Add reading
+            {t('Add reading')}
           </button>
         )}
         <button type="button" className="ghost" onClick={() => onViewHistory(tank)}>
-          View readings
+          {t('View readings')}
         </button>
       </div>
     </div>

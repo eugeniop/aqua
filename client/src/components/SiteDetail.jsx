@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useTranslation } from '../i18n/LocalizationProvider.jsx';
 import TankCard from './TankCard.jsx';
 import FlowmeterCard from './FlowmeterCard.jsx';
 import WellCard from './WellCard.jsx';
@@ -16,18 +17,6 @@ import './SiteDetail.css';
 
 const defaultTimestamp = () => new Date().toISOString().slice(0, 16);
 
-const typeLabels = {
-  well: 'Well',
-  tank: 'Tank',
-  flowmeter: 'Flowmeter'
-};
-
-const roleLabels = {
-  admin: 'Admin',
-  'field-operator': 'Field operator',
-  analyst: 'Analyst'
-};
-
 const HISTORY_PAGE_SIZE = 5;
 
 const defaultVisibleTypes = {
@@ -40,18 +29,6 @@ const historyFetchers = {
   well: getWellMeasurements,
   tank: getTankReadings,
   flowmeter: getFlowmeterReadings
-};
-
-const historyTypeLabels = {
-  well: 'Measurements',
-  tank: 'Readings',
-  flowmeter: 'Readings'
-};
-
-const filterLabels = {
-  well: 'Wells',
-  tank: 'Tanks',
-  flowmeter: 'Flowmeters'
 };
 
 const formatDateTime = (value) => (value ? new Date(value).toLocaleString() : '—');
@@ -165,6 +142,132 @@ export default function SiteDetail({
   onRecordFlowmeter,
   onRecordWell
 }) {
+  const { t } = useTranslation();
+  const typeLabels = useMemo(
+    () => ({
+      well: t('Well'),
+      tank: t('Tank'),
+      flowmeter: t('Flowmeter')
+    }),
+    [t]
+  );
+
+  const roleLabels = useMemo(
+    () => ({
+      admin: t('Admin'),
+      'field-operator': t('Field operator'),
+      analyst: t('Analyst')
+    }),
+    [t]
+  );
+
+  const historyTypeLabels = useMemo(
+    () => ({
+      well: t('Measurements'),
+      tank: t('Readings'),
+      flowmeter: t('Readings')
+    }),
+    [t]
+  );
+
+  const filterLabels = useMemo(
+    () => ({
+      well: t('Wells'),
+      tank: t('Tanks'),
+      flowmeter: t('Flowmeters')
+    }),
+    [t]
+  );
+
+  const historyColumns = useMemo(
+    () => ({
+      well: [
+        {
+          key: 'depth',
+          label: t('Depth (m)'),
+          render: (item) => (item.depth == null ? '—' : Number(item.depth).toFixed(2))
+        },
+        {
+          key: 'recordedAt',
+          label: t('Recorded at'),
+          render: (item) => formatDateTime(item.recordedAt)
+        },
+        { key: 'operator', label: t('Operator'), render: (item) => item.operator || '—' },
+        {
+          key: 'comment',
+          label: t('Comment'),
+          render: (item) => (item.comment ? item.comment : '—')
+        }
+      ],
+      tank: [
+        {
+          key: 'level',
+          label: t('Level (L)'),
+          render: (item) =>
+            item.level == null ? '—' : Number(item.level).toLocaleString(undefined, { maximumFractionDigits: 2 })
+        },
+        {
+          key: 'recordedAt',
+          label: t('Recorded at'),
+          render: (item) => formatDateTime(item.recordedAt)
+        },
+        { key: 'operator', label: t('Operator'), render: (item) => item.operator || '—' },
+        {
+          key: 'comment',
+          label: t('Comment'),
+          render: (item) => (item.comment ? item.comment : '—')
+        }
+      ],
+      flowmeter: [
+        {
+          key: 'instantaneousFlow',
+          label: t('Instantaneous (L/min)'),
+          render: (item) =>
+            item.instantaneousFlow == null
+              ? '—'
+              : Number(item.instantaneousFlow).toLocaleString(undefined, {
+                  minimumFractionDigits: 2,
+                  maximumFractionDigits: 2
+                })
+        },
+        {
+          key: 'totalizedVolume',
+          label: t('Totalized volume (L)'),
+          render: (item) =>
+            item.totalizedVolume == null
+              ? '—'
+              : Number(item.totalizedVolume).toLocaleString(undefined, {
+                  minimumFractionDigits: 2,
+                  maximumFractionDigits: 2
+                })
+        },
+        {
+          key: 'recordedAt',
+          label: t('Recorded at'),
+          render: (item) => formatDateTime(item.recordedAt)
+        },
+        { key: 'operator', label: t('Operator'), render: (item) => item.operator || '—' },
+        {
+          key: 'comment',
+          label: t('Comment'),
+          render: (item) => (item.comment ? item.comment : '—')
+        }
+      ]
+    }),
+    [t]
+  );
+
+  const historyChartSeries = useMemo(
+    () => ({
+      well: [{ key: 'depth', label: t('Depth (m)'), color: '#f97316' }],
+      tank: [{ key: 'level', label: t('Level (L)'), color: '#16a34a' }],
+      flowmeter: [
+        { key: 'instantaneousFlow', label: t('Instantaneous flow (L/min)'), color: '#0ea5e9' },
+        { key: 'totalizedVolume', label: t('Totalized volume (L)'), color: '#9333ea' }
+      ]
+    }),
+    [t]
+  );
   const userName = (user?.name || '').trim();
   const userRole = user?.role || '';
   const userRoleLabel = roleLabels[userRole] || 'Unknown role';
@@ -291,7 +394,7 @@ export default function SiteDetail({
       try {
         const fetchHistory = historyFetchers[historyModal.type];
         if (!fetchHistory) {
-          throw new Error('Unsupported feature type');
+          throw new Error(t('Unsupported feature type'));
         }
         const params = {
           page: historyPage,
@@ -336,7 +439,7 @@ export default function SiteDetail({
         setHistoryState((prev) => ({
           ...prev,
           loading: false,
-          error: error.message || 'Unable to load history'
+          error: error.message || t('Unable to load history')
         }));
       }
     };
@@ -426,7 +529,7 @@ export default function SiteDetail({
     if (!canDeleteHistoryItem(item)) {
       setHistoryState((prev) => ({
         ...prev,
-        error: 'You do not have permission to delete this entry.'
+        error: t('You do not have permission to delete this entry.')
       }));
       return;
     }
@@ -438,7 +541,7 @@ export default function SiteDetail({
 
     const deleteHandler = historyDeleteHandlers[historyModal.type];
     if (!deleteHandler) {
-      setHistoryState((prev) => ({ ...prev, error: 'Unable to delete entry.' }));
+      setHistoryState((prev) => ({ ...prev, error: t('Unable to delete entry') }));
       return;
     }
 
@@ -448,12 +551,12 @@ export default function SiteDetail({
     try {
       await deleteHandler(historyModal.feature.id, item.id);
       setHistoryReloadToken((prev) => prev + 1);
-    } catch (error) {
-      setHistoryState((prev) => ({
-        ...prev,
-        error: error.message || 'Unable to delete entry'
-      }));
-    } finally {
+  } catch (error) {
+    setHistoryState((prev) => ({
+      ...prev,
+      error: error.message || t('Unable to delete entry')
+    }));
+  } finally {
       setHistoryDeletingId(null);
     }
   };
@@ -474,7 +577,7 @@ export default function SiteDetail({
       const fromDate = new Date(from);
       const toDate = new Date(to);
       if (fromDate > toDate) {
-        setHistoryControlsError('“From” date must be before “to” date.');
+        setHistoryControlsError(t('“From” date must be before “to” date.'));
         return;
       }
     }
@@ -505,7 +608,7 @@ export default function SiteDetail({
 
     const fetchHistory = historyFetchers[historyModal.type];
     if (!fetchHistory) {
-      setHistoryControlsError('Unable to download history for this feature.');
+      setHistoryControlsError(t('Unable to download history for this feature.'));
       return;
     }
 
@@ -534,13 +637,13 @@ export default function SiteDetail({
       const items = result.items ?? [];
 
       if (items.length === 0) {
-        setHistoryControlsError('No rows available for the selected filters.');
+        setHistoryControlsError(t('No rows available for the selected filters.'));
         return;
       }
 
       const columns = historyColumns[historyModal.type] ?? [];
       if (columns.length === 0) {
-        setHistoryControlsError('No columns available for export.');
+        setHistoryControlsError(t('No columns available for export.'));
         return;
       }
 
@@ -577,7 +680,7 @@ export default function SiteDetail({
       document.body.removeChild(link);
       URL.revokeObjectURL(url);
     } catch (error) {
-      setHistoryControlsError(error.message || 'Unable to download CSV.');
+      setHistoryControlsError(error.message || t('Unable to download CSV.'));
     } finally {
       setHistoryDownloading(false);
     }
@@ -596,7 +699,7 @@ export default function SiteDetail({
       const fromDate = new Date(fromValue);
       const toDate = new Date(toValue);
       if (fromDate > toDate) {
-        setChartState((prev) => ({ ...prev, loading: false, error: '“From” date must be before “to” date.' }));
+        setChartState((prev) => ({ ...prev, loading: false, error: t('“From” date must be before “to” date.') }));
         return;
       }
     }
@@ -606,7 +709,7 @@ export default function SiteDetail({
     try {
       const fetchHistory = historyFetchers[currentHistory.type];
       if (!fetchHistory) {
-        throw new Error('Unsupported feature type');
+        throw new Error(t('Unsupported feature type'));
       }
 
       const params = { page: 1, limit: 500, order: 'asc' };
@@ -635,7 +738,7 @@ export default function SiteDetail({
     } catch (error) {
       setChartState({
         loading: false,
-        error: error.message || 'Unable to load chart data',
+        error: error.message || t('Unable to load chart data'),
         items: []
       });
     }
@@ -670,8 +773,8 @@ export default function SiteDetail({
   if (!site) {
     return (
       <div className="site-detail empty-state">
-        <h2>Select a site</h2>
-        <p>Choose a site from the list to begin capturing data.</p>
+        <h2>{t('Select a site')}</h2>
+        <p>{t('Choose a site from the list to begin capturing data.')}</p>
       </div>
     );
   }
@@ -744,13 +847,13 @@ export default function SiteDetail({
     }
 
     if (!canManageFeatures) {
-      setCreateError('You do not have permission to add new features.');
+      setCreateError(t('You do not have permission to add new features.'));
       return;
     }
 
     if (createModal === 'well') {
       if (!createForm.name?.trim()) {
-        setCreateError('Well name is required.');
+        setCreateError(t('Well name is required.'));
         return;
       }
       try {
@@ -764,7 +867,7 @@ export default function SiteDetail({
         setCreateForm({});
         return;
       } catch (error) {
-        setCreateError(error.message || 'Unable to save well.');
+        setCreateError(error.message || t('Unable to save well.'));
       } finally {
         setCreateSubmitting(false);
       }
@@ -773,7 +876,7 @@ export default function SiteDetail({
     if (createModal === 'tank') {
       const capacityValue = Number(createForm.capacity);
       if (!createForm.name?.trim() || Number.isNaN(capacityValue)) {
-        setCreateError('Tank name and capacity are required.');
+        setCreateError(t('Tank name and capacity are required.'));
         return;
       }
 
@@ -788,7 +891,7 @@ export default function SiteDetail({
         setCreateForm({});
         return;
       } catch (error) {
-        setCreateError(error.message || 'Unable to save tank.');
+        setCreateError(error.message || t('Unable to save tank.'));
       } finally {
         setCreateSubmitting(false);
       }
@@ -796,7 +899,7 @@ export default function SiteDetail({
 
     if (createModal === 'flowmeter') {
       if (!createForm.name?.trim()) {
-        setCreateError('Flowmeter name is required.');
+        setCreateError(t('Flowmeter name is required.'));
         return;
       }
 
@@ -811,7 +914,7 @@ export default function SiteDetail({
         setCreateForm({});
         return;
       } catch (error) {
-        setCreateError(error.message || 'Unable to save flowmeter.');
+        setCreateError(error.message || t('Unable to save flowmeter.'));
       } finally {
         setCreateSubmitting(false);
       }
@@ -825,12 +928,12 @@ export default function SiteDetail({
     }
 
     if (!canRecordMeasurements) {
-      setRecordError('You do not have permission to record entries.');
+      setRecordError(t('You do not have permission to record entries.'));
       return;
     }
 
     if (!userName) {
-      setRecordError('Your user name is required to record entries.');
+      setRecordError(t('Your user name is required to record entries.'));
       return;
     }
 
@@ -838,7 +941,7 @@ export default function SiteDetail({
 
     if (type === 'well') {
       if (!recordForm.depth) {
-        setRecordError('Depth is required.');
+        setRecordError(t('Depth is required.'));
         return;
       }
 
@@ -855,7 +958,7 @@ export default function SiteDetail({
         setRecordForm({});
         return;
       } catch (error) {
-        setRecordError(error.message || 'Unable to save measurement.');
+        setRecordError(error.message || t('Unable to save measurement.'));
       } finally {
         setRecordSubmitting(false);
       }
@@ -863,7 +966,7 @@ export default function SiteDetail({
 
     if (type === 'tank') {
       if (!recordForm.level) {
-        setRecordError('Level is required.');
+        setRecordError(t('Level is required.'));
         return;
       }
 
@@ -880,7 +983,7 @@ export default function SiteDetail({
         setRecordForm({});
         return;
       } catch (error) {
-        setRecordError(error.message || 'Unable to save reading.');
+        setRecordError(error.message || t('Unable to save reading.'));
       } finally {
         setRecordSubmitting(false);
       }
@@ -888,7 +991,7 @@ export default function SiteDetail({
 
     if (type === 'flowmeter') {
       if (!recordForm.instantaneousFlow || !recordForm.totalizedVolume) {
-        setRecordError('Both flow values are required.');
+        setRecordError(t('Both flow values are required.'));
         return;
       }
 
@@ -906,7 +1009,7 @@ export default function SiteDetail({
         setRecordForm({});
         return;
       } catch (error) {
-        setRecordError(error.message || 'Unable to save reading.');
+        setRecordError(error.message || t('Unable to save reading.'));
       } finally {
         setRecordSubmitting(false);
       }
@@ -922,38 +1025,38 @@ export default function SiteDetail({
         </div>
         <div className="operator-chip">
           <span>
-            Logged in as <strong>{displayUserName}</strong>
+            {t('Logged in as {name}', { name: displayUserName })}
           </span>
-          <span className="operator-role">Role: {userRoleLabel}</span>
+          <span className="operator-role">{t('Role: {role}', { role: userRoleLabel })}</span>
         </div>
       </header>
 
       <section className="site-actions">
-        <h2>Quick actions</h2>
+        <h2>{t('Quick actions')}</h2>
         {canManageFeatures ? (
           <>
-            <p className="actions-help">Add new assets directly from here.</p>
+            <p className="actions-help">{t('Add new assets directly from here.')}</p>
             <div className="site-actions-buttons">
               <button type="button" onClick={() => openCreateModal('well')}>
-                Add well
+                {t('Add well')}
               </button>
               <button type="button" onClick={() => openCreateModal('tank')}>
-                Add tank
+                {t('Add tank')}
               </button>
               <button type="button" onClick={() => openCreateModal('flowmeter')}>
-                Add flowmeter
+                {t('Add flowmeter')}
               </button>
             </div>
           </>
         ) : (
-          <p className="actions-help">You do not have permission to add new assets.</p>
+          <p className="actions-help">{t('You do not have permission to add new assets.')}</p>
         )}
       </section>
 
       <section className="feature-summary">
-        <h2>Feature summary</h2>
+        <h2>{t('Feature summary')}</h2>
         {features.length > 0 && (
-          <div className="feature-filters" role="group" aria-label="Filter feature cards by type">
+          <div className="feature-filters" role="group" aria-label={t('Filter feature cards by type')}>
             {Object.entries(filterLabels).map(([type, label]) => {
               const active = visibleTypes[type];
               return (
@@ -971,9 +1074,9 @@ export default function SiteDetail({
           </div>
         )}
         {features.length === 0 ? (
-          <p className="empty">No features recorded for this site yet.</p>
+          <p className="empty">{t('No features recorded for this site yet.')}</p>
         ) : filteredFeatures.length === 0 ? (
-          <p className="empty">No features match the selected filters.</p>
+          <p className="empty">{t('No features match the selected filters.')}</p>
         ) : (
           <div className="asset-grid">
             {filteredFeatures.map((feature) => {
@@ -1028,15 +1131,15 @@ export default function SiteDetail({
             <div className="history-fullscreen-actions">
               {historyView === 'chart' ? (
                 <button type="button" className="secondary" onClick={handleShowTable}>
-                  View table
+                  {t('View table')}
                 </button>
               ) : (
                 <button type="button" className="secondary" onClick={handleShowChart}>
-                  View chart
+                  {t('View chart')}
                 </button>
               )}
               <button type="button" className="history-close-button" onClick={closeHistoryModal}>
-                Close
+                {t('Close')}
               </button>
             </div>
           </div>
@@ -1045,7 +1148,7 @@ export default function SiteDetail({
               <div className="history-chart-view">
                 <form className="history-chart-controls" onSubmit={handleChartSubmit}>
                   <label>
-                    From
+                    {t('From')}
                     <input
                       type="datetime-local"
                       value={chartForm.from}
@@ -1053,7 +1156,7 @@ export default function SiteDetail({
                     />
                   </label>
                   <label>
-                    To
+                    {t('To')}
                     <input
                       type="datetime-local"
                       value={chartForm.to}
@@ -1062,7 +1165,7 @@ export default function SiteDetail({
                   </label>
                   <div className="history-chart-buttons">
                     <button type="submit" disabled={chartState.loading}>
-                      {chartState.loading ? 'Loading…' : 'Apply'}
+                      {chartState.loading ? t('Loading data…') : t('Apply')}
                     </button>
                     <button
                       type="button"
@@ -1070,16 +1173,16 @@ export default function SiteDetail({
                       onClick={handleChartReset}
                       disabled={chartState.loading}
                     >
-                      Clear
+                      {t('Reset')}
                     </button>
                   </div>
                 </form>
                 {chartState.error ? (
                   <p className="form-error">{chartState.error}</p>
                 ) : chartState.loading && chartState.items.length === 0 ? (
-                  <p className="history-status">Loading chart…</p>
+                  <p className="history-status">{t('Loading data…')}</p>
                 ) : (
-              <HistoryChart
+                  <HistoryChart
                 data={chartState.items}
                 series={chartSeriesConfig[historyModal.type] || []}
               />
@@ -1088,7 +1191,7 @@ export default function SiteDetail({
         ) : (
           <div className="history-table-view">
             <div className="history-operator-filter">
-              <div className="history-operator-label">Filter by operator</div>
+              <div className="history-operator-label">{t('Filter by operator')}</div>
               <div className="history-operator-buttons">
                 <button
                   type="button"
@@ -1096,7 +1199,7 @@ export default function SiteDetail({
                   onClick={() => handleHistoryOperatorSelect('')}
                   disabled={historyState.loading}
                 >
-                  All operators
+                  {t('All operators')}
                 </button>
                 {historyOperators.map((operator) => (
                   <button
@@ -1113,17 +1216,17 @@ export default function SiteDetail({
             </div>
 
             {historyState.loading ? (
-              <p className="history-status">Loading history…</p>
+              <p className="history-status">{t('Loading data…')}</p>
             ) : historyState.error ? (
               <p className="form-error">{historyState.error}</p>
             ) : historyState.items.length === 0 ? (
-              <p className="history-empty">No {historySummaryLabel} recorded yet.</p>
+              <p className="history-empty">{t('No history entries', { label: historySummaryLabel })}</p>
             ) : (
               <>
                 <div className="history-table-controls">
                   <form className="history-table-filter" onSubmit={handleHistoryFilterSubmit}>
                     <label>
-                      From
+                      {t('From')}
                       <input
                         type="datetime-local"
                         value={historyFilterForm.from}
@@ -1132,7 +1235,7 @@ export default function SiteDetail({
                       />
                     </label>
                     <label>
-                      To
+                      {t('To')}
                       <input
                         type="datetime-local"
                         value={historyFilterForm.to}
@@ -1142,7 +1245,7 @@ export default function SiteDetail({
                     </label>
                     <div className="history-table-buttons">
                       <button type="submit" disabled={historyState.loading}>
-                        {historyState.loading ? 'Loading…' : 'Apply'}
+                        {historyState.loading ? t('Loading data…') : t('Apply')}
                       </button>
                       <button
                         type="button"
@@ -1150,7 +1253,7 @@ export default function SiteDetail({
                         onClick={handleHistoryFilterReset}
                         disabled={historyState.loading}
                       >
-                        Clear
+                        {t('Reset')}
                       </button>
                     </div>
                   </form>
@@ -1160,7 +1263,7 @@ export default function SiteDetail({
                     onClick={handleDownloadCsv}
                     disabled={historyDownloading || historyState.loading || historyState.items.length === 0}
                   >
-                    {historyDownloading ? 'Downloading…' : 'Download CSV'}
+                    {historyDownloading ? 'Downloading…' : t('Download')}
                   </button>
                 </div>
                 {historyControlsError && (
@@ -1173,7 +1276,7 @@ export default function SiteDetail({
                         {historyColumns[historyModal.type].map((column) => (
                           <th key={column.key}>{column.label}</th>
                         ))}
-                        <th className="history-actions-column">Actions</th>
+                        <th className="history-actions-column">{t('Actions')}</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -1203,7 +1306,11 @@ export default function SiteDetail({
                 </div>
                 <div className="history-pagination">
                   <span>
-                    Showing {historyRangeStart}–{historyRangeEnd} of {historyState.total}
+                    {t('Showing range', {
+                      start: historyRangeStart,
+                      end: historyRangeEnd,
+                      total: historyState.total
+                    })}
                   </span>
                   <div className="history-pagination-buttons">
                     <button
@@ -1212,14 +1319,14 @@ export default function SiteDetail({
                       disabled={!historyHasPrevious || historyState.loading}
                       className="secondary"
                     >
-                      Previous
+                      {t('Previous')}
                     </button>
                     <button
                       type="button"
                       onClick={handleHistoryNext}
                       disabled={!historyHasNext || historyState.loading}
                     >
-                      Next
+                      {t('Next')}
                     </button>
                   </div>
                 </div>
@@ -1233,7 +1340,7 @@ export default function SiteDetail({
 
       {createModal && (
         <Modal
-          title={`Add ${typeLabels[createModal]}`}
+          title={t('Add new {type}', { type: typeLabels[createModal] })}
           onClose={closeCreateModal}
           dismissDisabled={createSubmitting}
           actions={
@@ -1244,17 +1351,17 @@ export default function SiteDetail({
                 onClick={closeCreateModal}
                 disabled={createSubmitting}
               >
-                Cancel
+                {t('Cancel')}
               </button>
               <button type="submit" form="create-feature-form" disabled={createSubmitting}>
-                {createSubmitting ? 'Saving…' : 'Save'}
+                {createSubmitting ? 'Saving…' : t('Save')}
               </button>
             </>
           }
         >
           <form id="create-feature-form" className="modal-form" onSubmit={handleCreateSubmit}>
             <label>
-              Name
+              {t('Name')}
               <input
                 type="text"
                 value={createForm.name}
@@ -1264,7 +1371,7 @@ export default function SiteDetail({
             </label>
             {createModal === 'tank' && (
               <label>
-                Capacity (L)
+                {t('Capacity (L)')}
                 <input
                   type="number"
                   min="0"
@@ -1277,7 +1384,7 @@ export default function SiteDetail({
             )}
             {createModal !== 'tank' && (
               <label>
-                Location (optional)
+                {t('Location')}
                 <input
                   type="text"
                   value={createForm.location}
@@ -1292,9 +1399,11 @@ export default function SiteDetail({
 
       {recordModal && (
         <Modal
-          title={`Add ${typeLabels[recordModal.type]} ${
-            recordModal.type === 'well' ? 'measurement' : 'reading'
-          }`}
+          title={
+            recordModal.type === 'well'
+              ? t('Add new measurement')
+              : t('Add new reading')
+          }
           onClose={closeRecordModal}
           dismissDisabled={recordSubmitting}
           actions={
@@ -1305,31 +1414,31 @@ export default function SiteDetail({
                 onClick={closeRecordModal}
                 disabled={recordSubmitting}
               >
-                Cancel
+                {t('Cancel')}
               </button>
               <button type="submit" form="record-feature-form" disabled={recordSubmitting}>
-                {recordSubmitting ? 'Saving…' : 'Save'}
+                {recordSubmitting ? 'Saving…' : t('Save')}
               </button>
             </>
           }
         >
           <form id="record-feature-form" className="modal-form" onSubmit={handleRecordSubmit}>
-            {recordModal.type === 'well' && (
-              <label>
-                Depth to water (m)
-                <input
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  value={recordForm.depth}
-                  onChange={handleRecordChange('depth')}
-                  required
-                />
-              </label>
-            )}
+              {recordModal.type === 'well' && (
+                <label>
+                  {t('Depth (m)')}
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={recordForm.depth}
+                    onChange={handleRecordChange('depth')}
+                    required
+                  />
+                </label>
+              )}
             {recordModal.type === 'tank' && (
               <label>
-                Level (L)
+                {t('Level (L)')}
                 <input
                   type="number"
                   min="0"
@@ -1343,7 +1452,7 @@ export default function SiteDetail({
             {recordModal.type === 'flowmeter' && (
               <>
                 <label>
-                  Instantaneous flow (L/min)
+                  {t('Instantaneous flow (L/min)')}
                   <input
                     type="number"
                     min="0"
@@ -1354,7 +1463,7 @@ export default function SiteDetail({
                   />
                 </label>
                 <label>
-                  Totalized volume (L)
+                  {t('Totalized volume (L)')}
                   <input
                     type="number"
                     min="0"
@@ -1367,7 +1476,7 @@ export default function SiteDetail({
               </>
             )}
             <label>
-              Date &amp; time
+              {t('Recorded at label')}
               <input
                 type="datetime-local"
                 value={recordForm.recordedAt}
@@ -1375,16 +1484,16 @@ export default function SiteDetail({
               />
             </label>
             <label>
-              Comment (optional)
+              {t('Comment (optional)')}
               <textarea
                 rows="2"
                 value={recordForm.comment}
                 onChange={handleRecordChange('comment')}
-                placeholder="Add any notes"
+                placeholder={t('Comment (optional)')}
               />
             </label>
             <p className="operator-reminder">
-              Logged in as {displayUserName} ({userRoleLabel})
+              {t('Logged in as {name}', { name: displayUserName })} ({userRoleLabel})
             </p>
             {recordError && <p className="form-error">{recordError}</p>}
           </form>

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import LoginForm from './components/LoginForm.jsx';
 import SiteList from './components/SiteList.jsx';
 import SiteDetail from './components/SiteDetail.jsx';
+import { useTranslation } from './i18n/LocalizationProvider.jsx';
 import {
   getSites,
   createSite,
@@ -25,6 +26,7 @@ export default function App() {
   const [loadingSite, setLoadingSite] = useState(false);
   const [error, setError] = useState('');
   const [showSitePanel, setShowSitePanel] = useState(true);
+  const { t, language, setLanguage } = useTranslation();
 
   useEffect(() => {
     if (!currentUser) {
@@ -61,7 +63,7 @@ export default function App() {
         setSelectedSiteId('');
       }
     } catch (err) {
-      setError(err.message || 'Unable to load sites');
+      setError(err.message || t('Unable to load sites'));
     } finally {
       setLoadingSites(false);
     }
@@ -78,7 +80,7 @@ export default function App() {
       const detail = await getSiteDetail(siteId);
       setActiveSite(detail);
     } catch (err) {
-      setError(err.message || 'Unable to load site');
+      setError(err.message || t('Unable to load site'));
     } finally {
       setLoadingSite(false);
     }
@@ -92,7 +94,7 @@ export default function App() {
   const handleCreateSite = async (payload) => {
     try {
       if (currentUser?.role !== 'admin') {
-        throw new Error('You do not have permission to create sites.');
+        throw new Error(t('You do not have permission to create sites.'));
       }
       const newSite = await createSite(payload);
       await loadSites();
@@ -159,12 +161,22 @@ export default function App() {
       <main className="content">
         <div className="content-header">
           <button type="button" className="toggle-panel" onClick={toggleSitePanel}>
-            {showSitePanel ? 'Hide sites' : 'Show sites'}
+            {showSitePanel ? t('Hide sites') : t('Show sites')}
           </button>
+          <div className="settings-panel">
+            <div className="settings-title">{t('Settings & Localization')}</div>
+            <label>
+              {t('languageLabel')}
+              <select value={language} onChange={(event) => setLanguage(event.target.value)}>
+                <option value="en">{t('english')}</option>
+                <option value="sw">{t('swahili')}</option>
+              </select>
+            </label>
+          </div>
         </div>
         {error && <div className="banner error">{error}</div>}
         {loadingSites || loadingSite ? (
-          <div className="loading">Loading data…</div>
+          <div className="loading">{t('Loading data…')}</div>
         ) : (
           <SiteDetail
             site={activeSite}
