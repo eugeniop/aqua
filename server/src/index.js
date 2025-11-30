@@ -8,6 +8,10 @@ import readingRoutes from './routes/readings.js';
 import { requireAuth } from './middleware/auth.js';
 
 import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url)); 
+const __filename = fileURLToPath(import.meta.url);
 
 dotenv.config();
 
@@ -42,7 +46,7 @@ mongoose
 
 
 if (process.env.NODE_ENV === 'production') {
-  const clientBuildPath = path.join(__dirname, '..', 'client', 'dist');
+  const clientBuildPath = path.join(__dirname, '..', '..', 'client', 'dist');
 
   app.use(express.static(clientBuildPath));
 
