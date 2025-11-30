@@ -7,6 +7,8 @@ import siteRoutes from './routes/sites.js';
 import readingRoutes from './routes/readings.js';
 import { requireAuth } from './middleware/auth.js';
 
+import path from 'path';
+
 dotenv.config();
 
 const app = express();
@@ -37,3 +39,14 @@ mongoose
     console.error('Failed to connect to MongoDB', error);
     process.exit(1);
   });
+
+
+if (process.env.NODE_ENV === 'production') {
+  const clientBuildPath = path.join(__dirname, '..', 'client', 'dist');
+
+  app.use(express.static(clientBuildPath));
+
+  app.get('*', (req, res) => {
+    res.sendFile(path.join(clientBuildPath, 'index.html'));
+  });
+}
