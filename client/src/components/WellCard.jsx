@@ -3,7 +3,7 @@ import { useTranslation } from '../i18n/LocalizationProvider.jsx';
 
 const formatDate = (value) => (value ? new Date(value).toLocaleString() : '—');
 
-export default function WellCard({ well, onViewHistory, onAddMeasurement }) {
+export default function WellCard({ well, onViewHistory, onAddMeasurement, onAddBulkMeasurement }) {
   const { t } = useTranslation();
   return (
     <div className="asset-card">
@@ -36,6 +36,11 @@ export default function WellCard({ well, onViewHistory, onAddMeasurement }) {
         )}
       </section>
       <div className="card-actions">
+        {onAddBulkMeasurement && (
+          <button type="button" className="ghost" onClick={() => onAddBulkMeasurement(well)}>
+            {t('Add bulk measurements')}
+          </button>
+        )}
         {onAddMeasurement && (
           <button type="button" onClick={() => onAddMeasurement(well)}>
             {t('Add measurement')}

@@ -100,6 +100,13 @@ export const recordWellMeasurement = (wellId, payload) =>
     body: JSON.stringify(payload)
   }).then(handleResponse);
 
+export const recordWellMeasurementsBulk = (wellId, payload) =>
+  fetch(`${API_ROOT}/wells/${wellId}/measurements/bulk`, {
+    method: 'POST',
+    headers: buildHeaders(jsonHeaders),
+    body: JSON.stringify(payload)
+  }).then(handleResponse);
+
 export const getTankReadings = (tankId, params) =>
   fetch(`${API_ROOT}/tanks/${tankId}/readings${toQueryString(params)}`, {
     headers: buildHeaders()
