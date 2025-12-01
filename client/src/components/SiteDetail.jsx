@@ -21,6 +21,44 @@ const BULK_ROW_COUNT = 20;
 const emptyBulkRow = () => ({ date: defaultDateOnly(), time: '', depth: '', comment: '' });
 const createBulkRows = () => Array.from({ length: BULK_ROW_COUNT }, () => emptyBulkRow());
 
+const parseBulkRowDateTime = (row) => {
+  if (!row.date || !(row.time || '').trim()) {
+    return null;
+  }
+
+  const parsed = new Date(`${row.date}T${row.time}`);
+  if (Number.isNaN(parsed.getTime())) {
+    return null;
+  }
+
+  return parsed;
+};
+
+const applyBulkChronologyErrors = (rows, errors) => {
+  const nextErrors = Object.entries(errors).reduce((acc, [rowIndex, rowErrors]) => {
+    const { order, ...rest } = rowErrors;
+    if (Object.keys(rest).length > 0) {
+      acc[rowIndex] = rest;
+    }
+    return acc;
+  }, {});
+
+  let lastRecordedAt = null;
+  rows.forEach((row, index) => {
+    const currentRecordedAt = parseBulkRowDateTime(row);
+    if (currentRecordedAt && lastRecordedAt && currentRecordedAt.getTime() < lastRecordedAt.getTime()) {
+      nextErrors[index] = { ...(nextErrors[index] || {}), order: true };
+      return;
+    }
+
+    if (currentRecordedAt) {
+      lastRecordedAt = currentRecordedAt;
+    }
+  });
+
+  return nextErrors;
+};
+
 const HISTORY_PAGE_SIZE = 5;
 
 const defaultVisibleTypes = {
@@ -860,6 +898,22 @@ export default function SiteDetail({
     setRecordForm((prev) => ({ ...prev, [field]: event.target.value }));
   };
 
+  const clearBulkErrorField = (errors, rowIndex, targetField) => {
+    if (!errors[rowIndex]) {
+      return errors;
+    }
+
+    const rowErrors = { ...errors[rowIndex] };
+    delete rowErrors[targetField];
+
+    if (Object.keys(rowErrors).length === 0) {
+      const { [rowIndex]: removed, ...rest } = errors; // eslint-disable-line no-unused-vars
+      return rest;
+    }
+
+    return { ...errors, [rowIndex]: rowErrors };
+  };
+
   const isBulkRowEmpty = (row) => {
     const trimmedComment = row.comment?.trim() || '';
     const hasDateChange = row.date && row.date !== defaultDateOnly();
@@ -898,37 +952,47 @@ export default function SiteDetail({
         rowIndex === index ? { ...row, [field]: value } : row
       );
 
-      if (field === 'time' && value) {
-        const followingRow = nextRows[index + 1];
-        if (followingRow && !(followingRow.time || '').trim()) {
-          nextRows[index + 1] = { ...followingRow, time: value };
+      setBulkErrors((prevErrors) => {
+        let nextErrors = clearBulkErrorField(prevErrors, index, field);
+        if (field === 'time' && value) {
+          nextErrors = clearBulkErrorField(nextErrors, index, 'order');
+          nextErrors = clearBulkErrorField(nextErrors, index + 1, 'time');
+          nextErrors = clearBulkErrorField(nextErrors, index + 1, 'order');
         }
-      }
+
+        if (field === 'date' && value) {
+          nextErrors = clearBulkErrorField(nextErrors, index, 'order');
+        }
+
+        return applyBulkChronologyErrors(nextRows, nextErrors);
+      });
 
       return nextRows;
     });
-    setBulkErrors((prev) => {
-      const next = { ...prev };
-      const clearFieldError = (rowIndex, targetField) => {
-        if (!next[rowIndex]) {
-          return;
-        }
-        const rowErrors = { ...next[rowIndex] };
-        delete rowErrors[targetField];
-        if (Object.keys(rowErrors).length === 0) {
-          delete next[rowIndex];
-        } else {
-          next[rowIndex] = rowErrors;
-        }
-      };
+  };
 
-      clearFieldError(index, field);
-      if (field === 'time' && value) {
-        clearFieldError(index + 1, 'time');
-        clearFieldError(index + 1, 'order');
+  const handleBulkTimeBlur = (index) => () => {
+    setBulkRows((prev) => {
+      const currentRow = prev[index];
+      const followingRow = prev[index + 1];
+      const timeValue = (currentRow?.time || '').trim();
+
+      if (!timeValue || !followingRow || (followingRow.time || '').trim()) {
+        return prev;
       }
 
-      return next;
+      const nextRows = prev.map((row, rowIndex) =>
+        rowIndex === index + 1 ? { ...row, time: timeValue } : row
+      );
+
+      setBulkErrors((prevErrors) => {
+        let nextErrors = clearBulkErrorField(prevErrors, index + 1, 'time');
+        nextErrors = clearBulkErrorField(nextErrors, index + 1, 'order');
+
+        return applyBulkChronologyErrors(nextRows, nextErrors);
+      });
+
+      return nextRows;
     });
   };
 
@@ -1585,7 +1649,7 @@ export default function SiteDetail({
                           type="date"
                           value={row.date}
                           onChange={handleBulkRowChange(index, 'date')}
-                          className={rowErrors.date ? 'input-error' : ''}
+                          className={rowErrors.date || rowErrors.order ? 'input-error' : ''}
                         />
                       </td>
                       <td>
@@ -1593,7 +1657,8 @@ export default function SiteDetail({
                           type="time"
                           value={row.time}
                           onChange={handleBulkRowChange(index, 'time')}
-                          className={rowErrors.time ? 'input-error' : ''}
+                          onBlur={handleBulkTimeBlur(index)}
+                          className={rowErrors.time || rowErrors.order ? 'input-error' : ''}
                         />
                       </td>
                       <td>
