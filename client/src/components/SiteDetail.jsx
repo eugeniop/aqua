@@ -996,6 +996,22 @@ export default function SiteDetail({
     });
   };
 
+  const handleBulkRowDelete = (index) => () => {
+    setBulkRows((prev) => {
+      const nextRows = prev.map((row, rowIndex) =>
+        rowIndex === index ? emptyBulkRow() : row
+      );
+
+      setBulkErrors(() => {
+        const { errors } = validateBulkRows(nextRows);
+        return errors;
+      });
+
+      setBulkError('');
+      return nextRows;
+    });
+  };
+
   const validateBulkRows = (rows) => {
     const errors = {};
     const payload = [];
@@ -1636,12 +1652,14 @@ export default function SiteDetail({
                   <th>{t('Date')}</th>
                   <th>{t('Time')}</th>
                   <th>{t('Depth (m)')}</th>
-                  <th>{t('Comment')}</th>
+                  <th className="bulk-comment-column">{t('Comment')}</th>
+                  <th className="bulk-actions-column">{t('Actions')}</th>
                 </tr>
               </thead>
               <tbody>
                 {bulkRows.map((row, index) => {
                   const rowErrors = bulkErrors[index] || {};
+                  const hasContent = !isBulkRowEmpty(row);
                   return (
                     <tr key={`bulk-row-${index}`}>
                       <td>
@@ -1677,6 +1695,16 @@ export default function SiteDetail({
                           value={row.comment}
                           onChange={handleBulkRowChange(index, 'comment')}
                         />
+                      </td>
+                      <td className="bulk-actions-column">
+                        <button
+                          type="button"
+                          className="bulk-delete-button"
+                          onClick={handleBulkRowDelete(index)}
+                          disabled={!hasContent || bulkSubmitting}
+                        >
+                          {t('Delete')}
+                        </button>
                       </td>
                     </tr>
                   );
