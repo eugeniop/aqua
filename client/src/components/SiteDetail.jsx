@@ -893,19 +893,41 @@ export default function SiteDetail({
 
   const handleBulkRowChange = (index, field) => (event) => {
     const value = event.target.value;
-    setBulkRows((prev) => prev.map((row, rowIndex) => (rowIndex === index ? { ...row, [field]: value } : row)));
+    setBulkRows((prev) => {
+      const nextRows = prev.map((row, rowIndex) =>
+        rowIndex === index ? { ...row, [field]: value } : row
+      );
+
+      if (field === 'time' && value) {
+        const followingRow = nextRows[index + 1];
+        if (followingRow && !(followingRow.time || '').trim()) {
+          nextRows[index + 1] = { ...followingRow, time: value };
+        }
+      }
+
+      return nextRows;
+    });
     setBulkErrors((prev) => {
-      if (!prev[index]) {
-        return prev;
-      }
       const next = { ...prev };
-      const nextRow = { ...next[index] };
-      delete nextRow[field];
-      if (Object.keys(nextRow).length === 0) {
-        delete next[index];
-      } else {
-        next[index] = nextRow;
+      const clearFieldError = (rowIndex, targetField) => {
+        if (!next[rowIndex]) {
+          return;
+        }
+        const rowErrors = { ...next[rowIndex] };
+        delete rowErrors[targetField];
+        if (Object.keys(rowErrors).length === 0) {
+          delete next[rowIndex];
+        } else {
+          next[rowIndex] = rowErrors;
+        }
+      };
+
+      clearFieldError(index, field);
+      if (field === 'time' && value) {
+        clearFieldError(index + 1, 'time');
+        clearFieldError(index + 1, 'order');
       }
+
       return next;
     });
   };
@@ -913,6 +935,8 @@ export default function SiteDetail({
   const validateBulkRows = (rows) => {
     const errors = {};
     const payload = [];
+    let lastRecordedAt = null;
+    let hasChronologyError = false;
 
     rows.forEach((row, index) => {
       const trimmedComment = row.comment?.trim() || '';
@@ -942,7 +966,13 @@ export default function SiteDetail({
         if (Number.isNaN(parsed.getTime())) {
           rowErrors.time = true;
         } else {
-          recordedAt = parsed.toISOString();
+          if (lastRecordedAt && parsed.getTime() < lastRecordedAt.getTime()) {
+            rowErrors.time = true;
+            rowErrors.order = true;
+            hasChronologyError = true;
+          } else {
+            recordedAt = parsed.toISOString();
+          }
         }
       }
 
@@ -951,17 +981,21 @@ export default function SiteDetail({
         return;
       }
 
+      lastRecordedAt = new Date(recordedAt);
       payload.push({ depth: depthValue, comment: trimmedComment || undefined, recordedAt });
     });
 
-    return { errors, payload };
+    return { errors, payload, hasChronologyError };
   };
 
   const handleBulkSaveRequest = () => {
-    const { errors, payload } = validateBulkRows(bulkRows);
+    const { errors, payload, hasChronologyError } = validateBulkRows(bulkRows);
     setBulkErrors(errors);
     if (Object.keys(errors).length > 0) {
-      setBulkError(t('Please fix the highlighted fields before saving.'));
+      const errorMessage = hasChronologyError
+        ? t('Each measurement must be at or after the previous entry.')
+        : t('Please fix the highlighted fields before saving.');
+      setBulkError(errorMessage);
       return;
     }
     if (payload.length === 0) {
@@ -1525,7 +1559,7 @@ export default function SiteDetail({
                 {t('Cancel')}
               </button>
               <button type="button" onClick={handleBulkSaveRequest} disabled={bulkSubmitting}>
-                {bulkSubmitting ? 'Saving…' : t('Save')}
+                {bulkSubmitting ? t('Saving…') : t('Save')}
               </button>
             </>
           }
@@ -1608,7 +1642,7 @@ export default function SiteDetail({
                 {t('Cancel')}
               </button>
               <button type="button" onClick={handleBulkConfirmSave} disabled={bulkSubmitting}>
-                {bulkSubmitting ? 'Saving…' : t('Save')}
+                {bulkSubmitting ? t('Saving…') : t('Save')}
               </button>
             </>
           }
