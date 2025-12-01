@@ -914,11 +914,7 @@ export default function SiteDetail({
     return { ...errors, [rowIndex]: rowErrors };
   };
 
-  const isBulkRowEmpty = (row) => {
-    const trimmedComment = row.comment?.trim() || '';
-    const hasDateChange = row.date && row.date !== defaultDateOnly();
-    return !row.depth && !(row.time || '').trim() && !trimmedComment && !hasDateChange;
-  };
+  const isBulkRowEmpty = (row) => row.depth === '' || row.depth == null;
 
   const openBulkWellModal = (well) => {
     if (!canRecordMeasurements) {
@@ -1020,15 +1016,15 @@ export default function SiteDetail({
 
     rows.forEach((row, index) => {
       const trimmedComment = row.comment?.trim() || '';
-      const hasContent =
-        row.depth !== '' || (row.time || '').trim() || trimmedComment || (row.date && row.date !== defaultDateOnly());
-      if (!hasContent) {
+      const hasDepth = row.depth !== '' && row.depth != null;
+
+      if (!hasDepth) {
         return;
       }
 
       const rowErrors = {};
       const depthValue = Number(row.depth);
-      if (row.depth === '' || Number.isNaN(depthValue)) {
+      if (Number.isNaN(depthValue)) {
         rowErrors.depth = true;
       }
 

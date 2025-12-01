@@ -251,7 +251,12 @@ export const recordWellMeasurementsBulk = async (req, res) => {
       const { depth, comment, recordedAt } = entry;
 
       if (depth == null) {
-        return res.status(400).json({ message: `Depth is required for row ${index + 1}` });
+        continue;
+      }
+
+      const parsedRecordedAt = new Date(recordedAt);
+      if (!recordedAt || Number.isNaN(parsedRecordedAt.getTime())) {
+        return res.status(400).json({ message: `Date and time are required for row ${index + 1}` });
       }
 
       payload.push({
