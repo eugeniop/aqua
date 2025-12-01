@@ -13,6 +13,7 @@ import {
   recordTankLevel,
   recordFlowmeterReading,
   recordWellMeasurement,
+  recordWellMeasurementsBulk,
   setAuthContext
 } from './api.js';
 import './App.css';
@@ -119,6 +120,11 @@ export default function App() {
     await loadSiteDetail(selectedSiteId);
   };
 
+  const handleRecordWellBulk = async (wellId, payload) => {
+    await recordWellMeasurementsBulk(wellId, payload);
+    await loadSiteDetail(selectedSiteId);
+  };
+
   const handleAddWell = async (siteId, payload) => {
     await addWell(siteId, payload);
     await loadSiteDetail(siteId);
@@ -189,6 +195,7 @@ export default function App() {
             onRecordTank={handleRecordTank}
             onRecordFlowmeter={handleRecordFlowmeter}
             onRecordWell={handleRecordWell}
+            onRecordWellBulk={handleRecordWellBulk}
           />
         )}
       </main>

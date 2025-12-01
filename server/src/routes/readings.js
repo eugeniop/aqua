@@ -3,6 +3,7 @@ import {
   recordTankLevel,
   recordFlowmeterReading,
   recordWellMeasurement,
+  recordWellMeasurementsBulk,
   listTankReadings,
   listFlowmeterReadings,
   listWellMeasurements,
@@ -21,6 +22,7 @@ router.post('/flowmeters/:flowmeterId/readings', recordFlowmeterReading);
 router.delete('/flowmeters/:flowmeterId/readings/:readingId', deleteFlowmeterReading);
 router.get('/wells/:wellId/measurements', listWellMeasurements);
 router.post('/wells/:wellId/measurements', recordWellMeasurement);
+router.post('/wells/:wellId/measurements/bulk', recordWellMeasurementsBulk);
 router.delete('/wells/:wellId/measurements/:measurementId', deleteWellMeasurement);
 
 export default router;
