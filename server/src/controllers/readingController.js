@@ -223,6 +223,64 @@ export const recordWellMeasurement = async (req, res) => {
   }
 };
 
+export const recordWellMeasurementsBulk = async (req, res) => {
+  try {
+    if (!canRecordEntries(req)) {
+      return res
+        .status(403)
+        .json({ message: 'You are not authorised to record well measurements' });
+    }
+
+    const { wellId } = req.params;
+    const { measurements } = req.body ?? {};
+    const operator = resolveOperatorName(req);
+
+    if (!Array.isArray(measurements)) {
+      return res.status(400).json({ message: 'Measurements payload must be an array' });
+    }
+
+    if (!operator) {
+      return res.status(400).json({ message: 'Operator name is required' });
+    }
+
+    const trimmed = measurements.slice(0, 20);
+    const payload = [];
+
+    for (let index = 0; index < trimmed.length; index += 1) {
+      const entry = trimmed[index] ?? {};
+      const { depth, comment, recordedAt } = entry;
+
+      if (depth == null) {
+        return res.status(400).json({ message: `Depth is required for row ${index + 1}` });
+      }
+
+      payload.push({
+        ...sanitizeBody({ recordedAt, operator, comment }),
+        well: wellId,
+        depth
+      });
+    }
+
+    if (payload.length === 0) {
+      return res.status(400).json({ message: 'At least one measurement is required' });
+    }
+
+    const measurementsCreated = await WellMeasurement.insertMany(payload);
+    res.status(201).json({
+      items: measurementsCreated.map((measurement) => ({
+        id: measurement._id.toString(),
+        well: wellId,
+        depth: measurement.depth,
+        operator: measurement.operator,
+        comment: measurement.comment ?? '',
+        recordedAt: measurement.recordedAt
+      }))
+    });
+  } catch (error) {
+    res.status(500).json({ message: 'Unable to record well measurements', error: error.message });
+  }
+};
+
 export const listTankReadings = async (req, res) => {
   try {
     const { tankId } = req.params;

@@ -16,6 +16,10 @@ import {
 import './SiteDetail.css';
 
 const defaultTimestamp = () => new Date().toISOString().slice(0, 16);
+const defaultDateOnly = () => new Date().toISOString().slice(0, 10);
+const BULK_ROW_COUNT = 20;
+const emptyBulkRow = () => ({ date: defaultDateOnly(), time: '', depth: '', comment: '' });
+const createBulkRows = () => Array.from({ length: BULK_ROW_COUNT }, () => emptyBulkRow());
 
 const HISTORY_PAGE_SIZE = 5;
 
@@ -140,7 +144,8 @@ export default function SiteDetail({
   onAddFlowmeter,
   onRecordTank,
   onRecordFlowmeter,
-  onRecordWell
+  onRecordWell,
+  onRecordWellBulk
 }) {
   const { t } = useTranslation();
   const typeLabels = useMemo(
@@ -284,6 +289,14 @@ export default function SiteDetail({
   const [recordError, setRecordError] = useState('');
   const [recordSubmitting, setRecordSubmitting] = useState(false);
 
+  const [bulkWellModal, setBulkWellModal] = useState(null);
+  const [bulkRows, setBulkRows] = useState([]);
+  const [bulkErrors, setBulkErrors] = useState({});
+  const [bulkError, setBulkError] = useState('');
+  const [bulkSubmitting, setBulkSubmitting] = useState(false);
+  const [bulkConfirmPending, setBulkConfirmPending] = useState(null);
+  const [bulkUnsavedConfirm, setBulkUnsavedConfirm] = useState(false);
+
   const [visibleTypes, setVisibleTypes] = useState(() => ({ ...defaultVisibleTypes }));
   const [historyModal, setHistoryModal] = useState(null);
   const [historyPage, setHistoryPage] = useState(1);
@@ -344,6 +357,13 @@ export default function SiteDetail({
     setRecordError('');
     setCreateSubmitting(false);
     setRecordSubmitting(false);
+    setBulkWellModal(null);
+    setBulkRows([]);
+    setBulkErrors({});
+    setBulkError('');
+    setBulkSubmitting(false);
+    setBulkConfirmPending(null);
+    setBulkUnsavedConfirm(false);
     setVisibleTypes({ ...defaultVisibleTypes });
     setHistoryModal(null);
     setHistoryPage(1);
@@ -840,6 +860,159 @@ export default function SiteDetail({
     setRecordForm((prev) => ({ ...prev, [field]: event.target.value }));
   };
 
+  const isBulkRowEmpty = (row) => {
+    const trimmedComment = row.comment?.trim() || '';
+    const hasDateChange = row.date && row.date !== defaultDateOnly();
+    return !row.depth && !(row.time || '').trim() && !trimmedComment && !hasDateChange;
+  };
+
+  const openBulkWellModal = (well) => {
+    if (!canRecordMeasurements) {
+      return;
+    }
+    setBulkWellModal(well);
+    setBulkRows(createBulkRows());
+    setBulkErrors({});
+    setBulkError('');
+    setBulkConfirmPending(null);
+    setBulkUnsavedConfirm(false);
+  };
+
+  const closeBulkWellModal = () => {
+    if (bulkSubmitting) {
+      return;
+    }
+    setBulkWellModal(null);
+    setBulkRows([]);
+    setBulkErrors({});
+    setBulkError('');
+    setBulkSubmitting(false);
+    setBulkConfirmPending(null);
+    setBulkUnsavedConfirm(false);
+  };
+
+  const handleBulkRowChange = (index, field) => (event) => {
+    const value = event.target.value;
+    setBulkRows((prev) => prev.map((row, rowIndex) => (rowIndex === index ? { ...row, [field]: value } : row)));
+    setBulkErrors((prev) => {
+      if (!prev[index]) {
+        return prev;
+      }
+      const next = { ...prev };
+      const nextRow = { ...next[index] };
+      delete nextRow[field];
+      if (Object.keys(nextRow).length === 0) {
+        delete next[index];
+      } else {
+        next[index] = nextRow;
+      }
+      return next;
+    });
+  };
+
+  const validateBulkRows = (rows) => {
+    const errors = {};
+    const payload = [];
+
+    rows.forEach((row, index) => {
+      const trimmedComment = row.comment?.trim() || '';
+      const hasContent =
+        row.depth !== '' || (row.time || '').trim() || trimmedComment || (row.date && row.date !== defaultDateOnly());
+      if (!hasContent) {
+        return;
+      }
+
+      const rowErrors = {};
+      const depthValue = Number(row.depth);
+      if (row.depth === '' || Number.isNaN(depthValue)) {
+        rowErrors.depth = true;
+      }
+
+      if (!row.date) {
+        rowErrors.date = true;
+      }
+
+      if (!(row.time || '').trim()) {
+        rowErrors.time = true;
+      }
+
+      let recordedAt;
+      if (!rowErrors.date && !rowErrors.time) {
+        const parsed = new Date(`${row.date}T${row.time}`);
+        if (Number.isNaN(parsed.getTime())) {
+          rowErrors.time = true;
+        } else {
+          recordedAt = parsed.toISOString();
+        }
+      }
+
+      if (Object.keys(rowErrors).length > 0) {
+        errors[index] = rowErrors;
+        return;
+      }
+
+      payload.push({ depth: depthValue, comment: trimmedComment || undefined, recordedAt });
+    });
+
+    return { errors, payload };
+  };
+
+  const handleBulkSaveRequest = () => {
+    const { errors, payload } = validateBulkRows(bulkRows);
+    setBulkErrors(errors);
+    if (Object.keys(errors).length > 0) {
+      setBulkError(t('Please fix the highlighted fields before saving.'));
+      return;
+    }
+    if (payload.length === 0) {
+      setBulkError(t('Enter at least one measurement to continue.'));
+      return;
+    }
+    setBulkError('');
+    setBulkConfirmPending({ count: payload.length, payload });
+  };
+
+  const handleBulkConfirmSave = async () => {
+    if (!bulkConfirmPending || !bulkWellModal) {
+      return;
+    }
+    try {
+      setBulkSubmitting(true);
+      await onRecordWellBulk(bulkWellModal.id, { measurements: bulkConfirmPending.payload });
+      closeBulkWellModal();
+    } catch (error) {
+      setBulkError(error.message || t('Unable to save measurement.'));
+    } finally {
+      setBulkSubmitting(false);
+      setBulkConfirmPending(null);
+    }
+  };
+
+  const cancelBulkConfirmation = () => {
+    setBulkConfirmPending(null);
+  };
+
+  const handleBulkCancel = () => {
+    if (bulkSubmitting) {
+      return;
+    }
+    const hasChanges = bulkRows.some((row) => !isBulkRowEmpty(row));
+    if (hasChanges) {
+      setBulkUnsavedConfirm(true);
+      return;
+    }
+    closeBulkWellModal();
+  };
+
+  const discardBulkChanges = () => {
+    setBulkUnsavedConfirm(false);
+    closeBulkWellModal();
+  };
+
+  const continueBulkEditing = () => {
+    setBulkUnsavedConfirm(false);
+  };
+
   const handleCreateSubmit = async (event) => {
     event.preventDefault();
     if (!createModal) {
@@ -1089,6 +1262,9 @@ export default function SiteDetail({
                     onAddMeasurement={
                       canRecordMeasurements ? (well) => openRecordModal('well', well) : undefined
                     }
+                    onAddBulkMeasurement={
+                      canRecordMeasurements ? (well) => openBulkWellModal(well) : undefined
+                    }
                   />
                 );
               }
@@ -1183,160 +1359,283 @@ export default function SiteDetail({
                   <p className="history-status">{t('Loading data…')}</p>
                 ) : (
                   <HistoryChart
-                data={chartState.items}
-                series={chartSeriesConfig[historyModal.type] || []}
-              />
-            )}
-          </div>
-        ) : (
-          <div className="history-table-view">
-            <div className="history-operator-filter">
-              <div className="history-operator-label">{t('Filter by operator')}</div>
-              <div className="history-operator-buttons">
-                <button
-                  type="button"
-                  className={`history-operator-button${historyFilters.operator ? '' : ' active'}`}
-                  onClick={() => handleHistoryOperatorSelect('')}
-                  disabled={historyState.loading}
-                >
-                  {t('All operators')}
-                </button>
-                {historyOperators.map((operator) => (
-                  <button
-                    key={operator}
-                    type="button"
-                    className={`history-operator-button${historyFilters.operator === operator ? ' active' : ''}`}
-                    onClick={() => handleHistoryOperatorSelect(operator)}
-                    disabled={historyState.loading}
-                  >
-                    {operator}
-                  </button>
-                ))}
+                    data={chartState.items}
+                    series={chartSeriesConfig[historyModal.type] || []}
+                  />
+                )}
               </div>
-            </div>
-
-            {historyState.loading ? (
-              <p className="history-status">{t('Loading data…')}</p>
-            ) : historyState.error ? (
-              <p className="form-error">{historyState.error}</p>
-            ) : historyState.items.length === 0 ? (
-              <p className="history-empty">{t('No history entries', { label: historySummaryLabel })}</p>
             ) : (
-              <>
-                <div className="history-table-controls">
-                  <form className="history-table-filter" onSubmit={handleHistoryFilterSubmit}>
-                    <label>
-                      {t('From')}
-                      <input
-                        type="datetime-local"
-                        value={historyFilterForm.from}
-                        onChange={handleHistoryFilterFormChange('from')}
-                        disabled={historyState.loading}
-                      />
-                    </label>
-                    <label>
-                      {t('To')}
-                      <input
-                        type="datetime-local"
-                        value={historyFilterForm.to}
-                        onChange={handleHistoryFilterFormChange('to')}
-                        disabled={historyState.loading}
-                      />
-                    </label>
-                    <div className="history-table-buttons">
-                      <button type="submit" disabled={historyState.loading}>
-                        {historyState.loading ? t('Loading data…') : t('Apply')}
-                      </button>
+              <div className="history-table-view">
+                <div className="history-operator-filter">
+                  <div className="history-operator-label">{t('Filter by operator')}</div>
+                  <div className="history-operator-buttons">
+                    <button
+                      type="button"
+                      className={`history-operator-button${historyFilters.operator ? '' : ' active'}`}
+                      onClick={() => handleHistoryOperatorSelect('')}
+                      disabled={historyState.loading}
+                    >
+                      {t('All operators')}
+                    </button>
+                    {historyOperators.map((operator) => (
                       <button
+                        key={operator}
                         type="button"
-                        className="secondary"
-                        onClick={handleHistoryFilterReset}
+                        className={`history-operator-button${historyFilters.operator === operator ? ' active' : ''}`}
+                        onClick={() => handleHistoryOperatorSelect(operator)}
                         disabled={historyState.loading}
                       >
-                        {t('Reset')}
+                        {operator}
                       </button>
-                    </div>
-                  </form>
-                  <button
-                    type="button"
-                    className="history-download-button secondary"
-                    onClick={handleDownloadCsv}
-                    disabled={historyDownloading || historyState.loading || historyState.items.length === 0}
-                  >
-                    {historyDownloading ? 'Downloading…' : t('Download')}
-                  </button>
-                </div>
-                {historyControlsError && (
-                  <p className="form-error history-controls-error">{historyControlsError}</p>
-                )}
-                <div className="history-table-wrapper">
-                  <table className="history-table">
-                    <thead>
-                      <tr>
-                        {historyColumns[historyModal.type].map((column) => (
-                          <th key={column.key}>{column.label}</th>
-                        ))}
-                        <th className="history-actions-column">{t('Actions')}</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {historyState.items.map((item) => (
-                        <tr key={item.id}>
-                          {historyColumns[historyModal.type].map((column) => (
-                            <td key={column.key}>{column.render(item)}</td>
-                          ))}
-                          <td className="history-actions-column">
-                            {canDeleteHistoryItem(item) ? (
-                              <button
-                                type="button"
-                                className="history-delete-button"
-                                onClick={() => handleHistoryDelete(item)}
-                                disabled={historyDeletingId === item.id || historyState.loading}
-                              >
-                                {historyDeletingId === item.id ? 'Deleting…' : 'Delete'}
-                              </button>
-                            ) : (
-                              <span className="history-no-actions">—</span>
-                            )}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-                <div className="history-pagination">
-                  <span>
-                    {t('Showing range', {
-                      start: historyRangeStart,
-                      end: historyRangeEnd,
-                      total: historyState.total
-                    })}
-                  </span>
-                  <div className="history-pagination-buttons">
-                    <button
-                      type="button"
-                      onClick={handleHistoryPrevious}
-                      disabled={!historyHasPrevious || historyState.loading}
-                      className="secondary"
-                    >
-                      {t('Previous')}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={handleHistoryNext}
-                      disabled={!historyHasNext || historyState.loading}
-                    >
-                      {t('Next')}
-                    </button>
+                    ))}
                   </div>
                 </div>
-              </>
+
+                {historyState.loading ? (
+                  <p className="history-status">{t('Loading data…')}</p>
+                ) : historyState.error ? (
+                  <p className="form-error">{historyState.error}</p>
+                ) : historyState.items.length === 0 ? (
+                  <p className="history-empty">{t('No history entries', { label: historySummaryLabel })}</p>
+                ) : (
+                  <>
+                    <div className="history-table-controls">
+                      <form className="history-table-filter" onSubmit={handleHistoryFilterSubmit}>
+                        <label>
+                          {t('From')}
+                          <input
+                            type="datetime-local"
+                            value={historyFilterForm.from}
+                            onChange={handleHistoryFilterFormChange('from')}
+                            disabled={historyState.loading}
+                          />
+                        </label>
+                        <label>
+                          {t('To')}
+                          <input
+                            type="datetime-local"
+                            value={historyFilterForm.to}
+                            onChange={handleHistoryFilterFormChange('to')}
+                            disabled={historyState.loading}
+                          />
+                        </label>
+                        <div className="history-table-buttons">
+                          <button type="submit" disabled={historyState.loading}>
+                            {historyState.loading ? t('Loading data…') : t('Apply')}
+                          </button>
+                          <button
+                            type="button"
+                            className="secondary"
+                            onClick={handleHistoryFilterReset}
+                            disabled={historyState.loading}
+                          >
+                            {t('Reset')}
+                          </button>
+                        </div>
+                      </form>
+                      <button
+                        type="button"
+                        className="history-download-button secondary"
+                        onClick={handleDownloadCsv}
+                        disabled={historyDownloading || historyState.loading || historyState.items.length === 0}
+                      >
+                        {historyDownloading ? 'Downloading…' : t('Download')}
+                      </button>
+                    </div>
+                    {historyControlsError && (
+                      <p className="form-error history-controls-error">{historyControlsError}</p>
+                    )}
+                    <div className="history-table-wrapper">
+                      <table className="history-table">
+                        <thead>
+                          <tr>
+                            {historyColumns[historyModal.type].map((column) => (
+                              <th key={column.key}>{column.label}</th>
+                            ))}
+                            <th className="history-actions-column">{t('Actions')}</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {historyState.items.map((item) => (
+                            <tr key={item.id}>
+                              {historyColumns[historyModal.type].map((column) => (
+                                <td key={column.key}>{column.render(item)}</td>
+                              ))}
+                              <td className="history-actions-column">
+                                {canDeleteHistoryItem(item) ? (
+                                  <button
+                                    type="button"
+                                    className="history-delete-button"
+                                    onClick={() => handleHistoryDelete(item)}
+                                    disabled={historyDeletingId === item.id || historyState.loading}
+                                  >
+                                    {historyDeletingId === item.id ? 'Deleting…' : 'Delete'}
+                                  </button>
+                                ) : (
+                                  <span className="history-no-actions">—</span>
+                                )}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                    <div className="history-pagination">
+                      <span>
+                        {t('Showing range', {
+                          start: historyRangeStart,
+                          end: historyRangeEnd,
+                          total: historyState.total
+                        })}
+                      </span>
+                      <div className="history-pagination-buttons">
+                        <button
+                          type="button"
+                          onClick={handleHistoryPrevious}
+                          disabled={!historyHasPrevious || historyState.loading}
+                          className="secondary"
+                        >
+                          {t('Previous')}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={handleHistoryNext}
+                          disabled={!historyHasNext || historyState.loading}
+                        >
+                          {t('Next')}
+                        </button>
+                      </div>
+                    </div>
+                  </>
+                )}
+              </div>
             )}
           </div>
-        )}
-      </div>
-    </div>
-  )}
+        </div>
+      )}
+
+      {bulkWellModal && (
+        <Modal
+          title={t('Add bulk measurements')}
+          onClose={handleBulkCancel}
+          dismissDisabled={bulkSubmitting}
+          actions={
+            <>
+              <button type="button" className="secondary" onClick={handleBulkCancel} disabled={bulkSubmitting}>
+                {t('Cancel')}
+              </button>
+              <button type="button" onClick={handleBulkSaveRequest} disabled={bulkSubmitting}>
+                {bulkSubmitting ? 'Saving…' : t('Save')}
+              </button>
+            </>
+          }
+        >
+          <p className="operator-reminder">{t('Operator: {name}', { name: displayUserName })}</p>
+          <div className="bulk-grid-wrapper">
+            <table className="bulk-grid">
+              <thead>
+                <tr>
+                  <th>{t('Date')}</th>
+                  <th>{t('Time')}</th>
+                  <th>{t('Depth (m)')}</th>
+                  <th>{t('Comment')}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {bulkRows.map((row, index) => {
+                  const rowErrors = bulkErrors[index] || {};
+                  return (
+                    <tr key={`bulk-row-${index}`}>
+                      <td>
+                        <input
+                          type="date"
+                          value={row.date}
+                          onChange={handleBulkRowChange(index, 'date')}
+                          className={rowErrors.date ? 'input-error' : ''}
+                        />
+                      </td>
+                      <td>
+                        <input
+                          type="time"
+                          value={row.time}
+                          onChange={handleBulkRowChange(index, 'time')}
+                          className={rowErrors.time ? 'input-error' : ''}
+                        />
+                      </td>
+                      <td>
+                        <input
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          value={row.depth}
+                          onChange={handleBulkRowChange(index, 'depth')}
+                          className={rowErrors.depth ? 'input-error' : ''}
+                        />
+                      </td>
+                      <td>
+                        <input
+                          type="text"
+                          value={row.comment}
+                          onChange={handleBulkRowChange(index, 'comment')}
+                        />
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+          <p className="bulk-helper-text">
+            {t('Only rows with depth or a comment will be saved. Empty rows are discarded automatically.')}
+          </p>
+          {bulkError && <p className="form-error">{bulkError}</p>}
+        </Modal>
+      )}
+
+      {bulkConfirmPending && bulkWellModal && (
+        <Modal
+          title={t('Confirm bulk save')}
+          onClose={cancelBulkConfirmation}
+          dismissDisabled={bulkSubmitting}
+          actions={
+            <>
+              <button
+                type="button"
+                className="secondary"
+                onClick={cancelBulkConfirmation}
+                disabled={bulkSubmitting}
+              >
+                {t('Cancel')}
+              </button>
+              <button type="button" onClick={handleBulkConfirmSave} disabled={bulkSubmitting}>
+                {bulkSubmitting ? 'Saving…' : t('Save')}
+              </button>
+            </>
+          }
+        >
+          <p>{t('You are saving {count} measurements. Save?', { count: bulkConfirmPending.count })}</p>
+        </Modal>
+      )}
+
+      {bulkUnsavedConfirm && (
+        <Modal
+          title={t('Leave bulk editor?')}
+          onClose={continueBulkEditing}
+          dismissDisabled={bulkSubmitting}
+          actions={
+            <>
+              <button type="button" className="secondary" onClick={continueBulkEditing} disabled={bulkSubmitting}>
+                {t('Continue editing')}
+              </button>
+              <button type="button" onClick={discardBulkChanges} disabled={bulkSubmitting}>
+                {t('Discard and exit')}
+              </button>
+            </>
+          }
+        >
+          <p>{t('You have unsaved measurements. Are you sure you want to leave?')}</p>
+        </Modal>
+      )}
 
       {createModal && (
         <Modal
