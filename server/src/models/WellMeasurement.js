@@ -21,6 +21,11 @@ const wellMeasurementSchema = new mongoose.Schema(
       type: String,
       trim: true
     },
+    pumpState: {
+      type: String,
+      enum: ['on', 'off'],
+      default: 'off'
+    },
     recordedAt: {
       type: Date,
       default: Date.now

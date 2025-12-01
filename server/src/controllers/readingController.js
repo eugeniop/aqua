@@ -3,11 +3,18 @@ import FlowmeterReading from '../models/FlowmeterReading.js';
 import WellMeasurement from '../models/WellMeasurement.js';
 import { isAdmin, isFieldOperator } from '../middleware/auth.js';
 
-const sanitizeBody = ({ recordedAt, operator, comment }) => ({
-  recordedAt: recordedAt ? new Date(recordedAt) : new Date(),
-  operator,
-  comment
-});
+const normalizePumpState = (value) => (value === 'on' ? 'on' : 'off');
+
+const sanitizeBody = ({ recordedAt, operator, comment, pumpState }) => {
+  const normalizedPumpState = pumpState == null ? undefined : normalizePumpState(pumpState);
+
+  return {
+    recordedAt: recordedAt ? new Date(recordedAt) : new Date(),
+    operator,
+    comment,
+    ...(normalizedPumpState ? { pumpState: normalizedPumpState } : {})
+  };
+};
 
 const canRecordEntries = (req) => isAdmin(req) || isFieldOperator(req);
 
@@ -93,7 +100,8 @@ const formatHistoryEntry = (doc) => ({
   level: doc.level ?? undefined,
   instantaneousFlow: doc.instantaneousFlow ?? undefined,
   totalizedVolume: doc.totalizedVolume ?? undefined,
-  depth: doc.depth ?? undefined
+  depth: doc.depth ?? undefined,
+  pumpState: doc.pumpState ?? undefined
 });
 
 const buildHistoryResponse = (items, total, page, limit, operators = []) => ({
@@ -197,8 +205,9 @@ export const recordWellMeasurement = async (req, res) => {
     }
 
     const { wellId } = req.params;
-    const { depth, comment, recordedAt, operator: providedOperator } = req.body;
+    const { depth, comment, recordedAt, operator: providedOperator, pumpState } = req.body;
     const operator = resolveOperatorName(req, providedOperator);
+    const normalizedPumpState = normalizePumpState(pumpState);
 
     if (depth == null) {
       return res.status(400).json({ message: 'Depth is required' });
@@ -208,7 +217,12 @@ export const recordWellMeasurement = async (req, res) => {
       return res.status(400).json({ message: 'Operator name is required' });
     }
 
-    const payload = { ...sanitizeBody({ recordedAt, operator, comment }), well: wellId, depth };
+    const payload = {
+      ...sanitizeBody({ recordedAt, operator, comment, pumpState: normalizedPumpState }),
+      well: wellId,
+      depth,
+      pumpState: normalizedPumpState
+    };
     const measurement = await WellMeasurement.create(payload);
     res.status(201).json({
       id: measurement._id.toString(),
@@ -216,7 +230,8 @@ export const recordWellMeasurement = async (req, res) => {
       depth: measurement.depth,
       operator: measurement.operator,
       comment: measurement.comment ?? '',
-      recordedAt: measurement.recordedAt
+      recordedAt: measurement.recordedAt,
+      pumpState: measurement.pumpState
     });
   } catch (error) {
     res.status(500).json({ message: 'Unable to record well measurement', error: error.message });
@@ -248,7 +263,7 @@ export const recordWellMeasurementsBulk = async (req, res) => {
 
     for (let index = 0; index < trimmed.length; index += 1) {
       const entry = trimmed[index] ?? {};
-      const { depth, comment, recordedAt } = entry;
+      const { depth, comment, recordedAt, pumpState } = entry;
 
       if (depth == null) {
         continue;
@@ -259,10 +274,13 @@ export const recordWellMeasurementsBulk = async (req, res) => {
         return res.status(400).json({ message: `Date and time are required for row ${index + 1}` });
       }
 
+      const normalizedPumpState = normalizePumpState(pumpState);
+
       payload.push({
-        ...sanitizeBody({ recordedAt, operator, comment }),
+        ...sanitizeBody({ recordedAt, operator, comment, pumpState: normalizedPumpState }),
         well: wellId,
-        depth
+        depth,
+        pumpState: normalizedPumpState
       });
     }
 

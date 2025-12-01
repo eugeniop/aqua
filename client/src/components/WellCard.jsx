@@ -25,6 +25,13 @@ export default function WellCard({ well, onViewHistory, onAddMeasurement, onAddB
                 value: Number(well.latestMeasurement.depth).toFixed(2)
               })}
             </li>
+            {well.latestMeasurement.pumpState && (
+              <li>
+                {t('Pump state: {state}', {
+                  state: well.latestMeasurement.pumpState === 'on' ? t('On') : t('Off')
+                })}
+              </li>
+            )}
             <li>{t('Recorded: {value}', { value: formatDate(well.latestMeasurement.recordedAt) })}</li>
             <li>{t('Operator: {name}', { name: well.latestMeasurement.operator })}</li>
             {well.latestMeasurement.comment && (
