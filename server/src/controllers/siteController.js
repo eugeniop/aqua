@@ -25,7 +25,8 @@ const formatReading = (doc) =>
         level: doc.level ?? undefined,
         instantaneousFlow: doc.instantaneousFlow ?? undefined,
         totalizedVolume: doc.totalizedVolume ?? undefined,
-        depth: doc.depth ?? undefined
+        depth: doc.depth ?? undefined,
+        pumpState: doc.pumpState ?? undefined
       }
     : null;
 

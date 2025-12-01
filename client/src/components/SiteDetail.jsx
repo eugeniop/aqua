@@ -18,7 +18,14 @@ import './SiteDetail.css';
 const defaultTimestamp = () => new Date().toISOString().slice(0, 16);
 const defaultDateOnly = () => new Date().toISOString().slice(0, 10);
 const BULK_ROW_COUNT = 20;
-const emptyBulkRow = () => ({ date: defaultDateOnly(), time: '', depth: '', comment: '' });
+const defaultPumpState = 'off';
+const emptyBulkRow = (pumpState = defaultPumpState) => ({
+  date: defaultDateOnly(),
+  time: '',
+  depth: '',
+  pumpState,
+  comment: ''
+});
 const createBulkRows = () => Array.from({ length: BULK_ROW_COUNT }, () => emptyBulkRow());
 
 const parseBulkRowDateTime = (row) => {
@@ -229,6 +236,16 @@ export default function SiteDetail({
           key: 'depth',
           label: t('Depth (m)'),
           render: (item) => (item.depth == null ? '—' : Number(item.depth).toFixed(2))
+        },
+        {
+          key: 'pumpState',
+          label: t('Pump state'),
+          render: (item) => {
+            if (!item.pumpState) {
+              return '—';
+            }
+            return item.pumpState === 'on' ? t('On') : t('Off');
+          }
         },
         {
           key: 'recordedAt',
@@ -859,7 +876,7 @@ export default function SiteDetail({
     setRecordModal({ type, feature });
     setRecordError('');
     if (type === 'well') {
-      setRecordForm({ depth: '', comment: '', recordedAt: defaultTimestamp() });
+      setRecordForm({ depth: '', pumpState: defaultPumpState, comment: '', recordedAt: defaultTimestamp() });
     } else if (type === 'tank') {
       setRecordForm({ level: '', comment: '', recordedAt: defaultTimestamp() });
     } else if (type === 'flowmeter') {
@@ -914,6 +931,19 @@ export default function SiteDetail({
     return { ...errors, [rowIndex]: rowErrors };
   };
 
+  const isBulkRowPristine = (row) =>
+    (row.depth === '' || row.depth == null) && !(row.time || '').trim() && !(row.comment || '').trim();
+
+  const getPreviousPumpState = (rows, index) => {
+    for (let cursor = index - 1; cursor >= 0; cursor -= 1) {
+      const pumpState = rows[cursor]?.pumpState;
+      if (pumpState) {
+        return pumpState;
+      }
+    }
+    return defaultPumpState;
+  };
+
   const isBulkRowEmpty = (row) => row.depth === '' || row.depth == null;
 
   const openBulkWellModal = (well) => {
@@ -944,9 +974,29 @@ export default function SiteDetail({
   const handleBulkRowChange = (index, field) => (event) => {
     const value = event.target.value;
     setBulkRows((prev) => {
-      const nextRows = prev.map((row, rowIndex) =>
+      let nextRows = prev.map((row, rowIndex) =>
         rowIndex === index ? { ...row, [field]: value } : row
       );
+
+      if (field === 'pumpState') {
+        nextRows = nextRows.map((row, rowIndex) =>
+          rowIndex === index ? { ...row, pumpState: value } : row
+        );
+
+        for (let cursor = index + 1; cursor < nextRows.length; cursor += 1) {
+          if (!isBulkRowPristine(nextRows[cursor])) {
+            break;
+          }
+          nextRows = nextRows.map((row, rowIndex) =>
+            rowIndex === cursor ? { ...row, pumpState: value } : row
+          );
+        }
+      } else if (!nextRows[index].pumpState) {
+        const previousPumpState = getPreviousPumpState(nextRows, index);
+        nextRows = nextRows.map((row, rowIndex) =>
+          rowIndex === index ? { ...row, pumpState: previousPumpState } : row
+        );
+      }
 
       setBulkErrors((prevErrors) => {
         let nextErrors = clearBulkErrorField(prevErrors, index, field);
@@ -994,8 +1044,9 @@ export default function SiteDetail({
 
   const handleBulkRowDelete = (index) => () => {
     setBulkRows((prev) => {
+      const fallbackPumpState = getPreviousPumpState(prev, index);
       const nextRows = prev.map((row, rowIndex) =>
-        rowIndex === index ? emptyBulkRow() : row
+        rowIndex === index ? emptyBulkRow(fallbackPumpState) : row
       );
 
       setBulkErrors(() => {
@@ -1012,6 +1063,7 @@ export default function SiteDetail({
     const errors = {};
     const payload = [];
     let lastRecordedAt = null;
+    let lastPumpState = defaultPumpState;
     let hasChronologyError = false;
 
     rows.forEach((row, index) => {
@@ -1058,7 +1110,15 @@ export default function SiteDetail({
       }
 
       lastRecordedAt = new Date(recordedAt);
-      payload.push({ depth: depthValue, comment: trimmedComment || undefined, recordedAt });
+      const pumpState = row.pumpState === 'on' ? 'on' : row.pumpState === 'off' ? 'off' : lastPumpState;
+      lastPumpState = pumpState;
+
+      payload.push({
+        depth: depthValue,
+        pumpState,
+        comment: trimmedComment || undefined,
+        recordedAt
+      });
     });
 
     return { errors, payload, hasChronologyError };
@@ -1232,6 +1292,7 @@ export default function SiteDetail({
         setRecordSubmitting(true);
         await onRecordWell(feature.id, {
           depth: Number(recordForm.depth),
+          pumpState: recordForm.pumpState === 'on' ? 'on' : 'off',
           comment: recordForm.comment?.trim() || undefined,
           recordedAt: recordForm.recordedAt ? new Date(recordForm.recordedAt).toISOString() : undefined,
           operator: userName
@@ -1648,6 +1709,7 @@ export default function SiteDetail({
                   <th>{t('Date')}</th>
                   <th>{t('Time')}</th>
                   <th>{t('Depth (m)')}</th>
+                  <th>{t('Pump state')}</th>
                   <th className="bulk-comment-column">{t('Comment')}</th>
                   <th className="bulk-actions-column">{t('Actions')}</th>
                 </tr>
@@ -1684,6 +1746,12 @@ export default function SiteDetail({
                           onChange={handleBulkRowChange(index, 'depth')}
                           className={rowErrors.depth ? 'input-error' : ''}
                         />
+                      </td>
+                      <td>
+                        <select value={row.pumpState} onChange={handleBulkRowChange(index, 'pumpState')}>
+                          <option value="on">{t('On')}</option>
+                          <option value="off">{t('Off')}</option>
+                        </select>
                       </td>
                       <td>
                         <input
@@ -1846,17 +1914,26 @@ export default function SiteDetail({
         >
           <form id="record-feature-form" className="modal-form" onSubmit={handleRecordSubmit}>
               {recordModal.type === 'well' && (
-                <label>
-                  {t('Depth (m)')}
-                  <input
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    value={recordForm.depth}
-                    onChange={handleRecordChange('depth')}
-                    required
-                  />
-                </label>
+                <>
+                  <label>
+                    {t('Depth (m)')}
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={recordForm.depth}
+                      onChange={handleRecordChange('depth')}
+                      required
+                    />
+                  </label>
+                  <label>
+                    {t('Pump state')}
+                    <select value={recordForm.pumpState} onChange={handleRecordChange('pumpState')}>
+                      <option value="on">{t('On')}</option>
+                      <option value="off">{t('Off')}</option>
+                    </select>
+                  </label>
+                </>
               )}
             {recordModal.type === 'tank' && (
               <label>
