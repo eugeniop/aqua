@@ -1450,6 +1450,7 @@ export default function SiteDetail({
                   <HistoryChart
                     data={chartState.items}
                     series={historyChartSeries[historyModal.type] || []}
+                    invertYAxis={historyModal.type === 'well'}
                   />
                 )}
               </div>

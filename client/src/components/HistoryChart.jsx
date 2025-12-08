@@ -43,7 +43,13 @@ const buildTicks = (start, end, count) => {
   return Array.from({ length: count }, (_, index) => start + (span * index) / (count - 1));
 };
 
-export default function HistoryChart({ data, series = [], width = WIDTH, height = HEIGHT }) {
+export default function HistoryChart({
+  data,
+  series = [],
+  width = WIDTH,
+  height = HEIGHT,
+  invertYAxis = false
+}) {
   const { t, formatDateTime } = useTranslation();
   const prepared = useMemo(() => {
     const parsed = (data || [])
@@ -105,7 +111,9 @@ export default function HistoryChart({ data, series = [], width = WIDTH, height 
   const innerHeight = height - PADDING.top - PADDING.bottom;
 
   const scaleX = createScale(minTime, maxTime, PADDING.left, PADDING.left + innerWidth);
-  const scaleY = createScale(maxValue, minValue, PADDING.top, PADDING.top + innerHeight);
+  const scaleY = invertYAxis
+    ? createScale(minValue, maxValue, PADDING.top, PADDING.top + innerHeight)
+    : createScale(maxValue, minValue, PADDING.top, PADDING.top + innerHeight);
 
   const xTicks = buildTicks(minTime, maxTime, Math.min(TICK_COUNT, prepared.parsed.length));
   const yTicks = buildTicks(minValue, maxValue, TICK_COUNT);
