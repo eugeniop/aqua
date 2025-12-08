@@ -3,6 +3,7 @@ export const translations = {
     languageLabel: 'Language',
     english: 'English',
     swahili: 'Swahili',
+    'Aqua Monitor': 'Water System Monitor',
     timeZoneLabel: 'Time zone',
     pacificTime: 'Pacific Time (PST/PDT)',
     tanzaniaTime: 'Tanzania (EAT)',
@@ -43,7 +44,7 @@ export const translations = {
     timeZoneLabel: 'Kanda ya saa',
     pacificTime: 'Saa za Pasifiki (PST/PDT)',
     tanzaniaTime: 'Saa za Tanzania (EAT)',
-    'Aqua Monitor': 'Aqua Monitor',
+    'Aqua Monitor': 'Ufuatiliaji wa Mfumo wa Maji',
     'Capture water production, storage and usage data with confidence.':
       'Kusanya taarifa za uzalishaji, uhifadhi na matumizi ya maji kwa uhakika.',
     'Operator name': 'Jina la mtumiaji',
