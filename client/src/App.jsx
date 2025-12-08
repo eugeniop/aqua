@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
-import LoginForm from './components/LoginForm.jsx';
+import { auth0Client } from './auth/auth0Client.js';
 import SiteList from './components/SiteList.jsx';
 import SiteDetail from './components/SiteDetail.jsx';
 import { useTranslation } from './i18n/LocalizationProvider.jsx';
+import './components/LoginForm.css';
 import {
   getSites,
   createSite,
@@ -26,8 +27,35 @@ export default function App() {
   const [loadingSites, setLoadingSites] = useState(false);
   const [loadingSite, setLoadingSite] = useState(false);
   const [error, setError] = useState('');
+  const [authLoading, setAuthLoading] = useState(true);
+  const [authError, setAuthError] = useState('');
   const [showSitePanel, setShowSitePanel] = useState(true);
   const { t, language, setLanguage, timeZone, setTimeZone } = useTranslation();
+
+  useEffect(() => {
+    const initializeAuth = async () => {
+      try {
+        await auth0Client.handleRedirectCallback();
+        if (auth0Client.isAuthenticated()) {
+          const profile = auth0Client.getUserProfile();
+          setAuthContext({
+            name: profile.name,
+            role: profile.role,
+            getToken: () => Promise.resolve(auth0Client.getAccessToken())
+          });
+          setCurrentUser(profile);
+        } else {
+          setCurrentUser(null);
+        }
+      } catch (err) {
+        setAuthError(err.message || t('Unable to complete authentication.'));
+      } finally {
+        setAuthLoading(false);
+      }
+    };
+
+    initializeAuth();
+  }, [t]);
 
   useEffect(() => {
     if (!currentUser) {
@@ -36,9 +64,12 @@ export default function App() {
     loadSites();
   }, [currentUser]);
 
-  const handleLogin = ({ name, role }) => {
-    setAuthContext({ name, role });
-    setCurrentUser({ name, role });
+  const handleLogin = () => {
+    auth0Client.loginWithRedirect().catch((err) => setAuthError(err.message));
+  };
+
+  const handleLogout = () => {
+    auth0Client.logout();
   };
 
   const loadSites = async () => {
@@ -144,8 +175,24 @@ export default function App() {
     setShowSitePanel((value) => !value);
   };
 
+  if (authLoading) {
+    return <div className="loading">{t('Loading authentication…')}</div>;
+  }
+
   if (!currentUser) {
-    return <LoginForm onLogin={handleLogin} />;
+    return (
+      <div className="login-container">
+        <h1>{t('Aqua Monitor')}</h1>
+        <p className="tagline">{t('Capture water production, storage and usage data with confidence.')}</p>
+        <div className="card">
+          <p>{t('Sign in with your Auth0 account to continue.')}</p>
+          {authError && <p className="error">{authError}</p>}
+          <button type="button" onClick={handleLogin}>
+            {t('Continue')}
+          </button>
+        </div>
+      </div>
+    );
   }
 
   const role = currentUser.role;
@@ -169,6 +216,15 @@ export default function App() {
           <button type="button" className="toggle-panel" onClick={toggleSitePanel}>
             {showSitePanel ? t('Hide sites') : t('Show sites')}
           </button>
+          <div className="user-session">
+            <div className="user-meta">
+              <div>{t('Logged in as {name}', { name: currentUser.name || t('Unknown user') })}</div>
+              <div className="role">{t('Role: {role}', { role })}</div>
+            </div>
+            <button type="button" className="secondary" onClick={handleLogout}>
+              {t('Log out')}
+            </button>
+          </div>
           <div className="settings-panel">
             <div className="settings-title">{t('Settings & Localization')}</div>
             <label>

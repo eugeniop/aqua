@@ -20,6 +20,29 @@
   padding: 1rem 1.5rem 0;
 }
 
+.user-session {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  background: #ffffff;
+  padding: 0.6rem 0.9rem;
+  border-radius: 12px;
+  box-shadow: 0 10px 25px rgba(15, 23, 42, 0.08);
+  border: 1px solid #e2e8f0;
+}
+
+.user-meta {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.25;
+  color: #0f172a;
+}
+
+.user-meta .role {
+  font-size: 0.9rem;
+  color: #475569;
+}
+
 .toggle-panel {
   border: none;
   background: #2563eb;
@@ -30,6 +53,19 @@
   cursor: pointer;
   box-shadow: 0 10px 25px rgba(37, 99, 235, 0.15);
   transition: background 0.2s ease, transform 0.2s ease;
+}
+
+button.secondary {
+  background: transparent;
+  border: 1px solid #cbd5e1;
+  color: #0f172a;
+  border-radius: 8px;
+  padding: 0.45rem 0.75rem;
+  font-weight: 600;
+}
+
+button.secondary:hover {
+  background: #f8fafc;
 }
 
 .settings-panel {

@@ -44,7 +44,10 @@ workspace/
    cp .env.example .env
    ```
 
-3. Start the development server:
+3. Configure Auth0 credentials by updating `.env` (see `.env.example`) with your tenant domain
+   and API audience.
+
+4. Start the development server:
 
    ```bash
    npm run dev
@@ -70,10 +73,16 @@ workspace/
    ```
 
 2. Create a `.env` file to point the client at the API if you are not using the default URL
-   (`http://localhost:4000/api`):
+   (`http://localhost:4000/api`). Include your Auth0 details to enable login:
 
    ```bash
-   echo "VITE_API_URL=http://localhost:4000/api" > .env
+   cat <<'EOF' > .env
+   VITE_API_URL=http://localhost:4000/api
+   VITE_AUTH0_DOMAIN=YOUR_AUTH0_DOMAIN
+   VITE_AUTH0_CLIENT_ID=YOUR_AUTH0_CLIENT_ID
+   VITE_AUTH0_AUDIENCE=YOUR_AUTH0_API_AUDIENCE
+   VITE_AUTH0_ROLE_CLAIM=https://aqua.example.com/roles
+   EOF
    ```
 
 3. Run the development server:
@@ -82,20 +91,18 @@ workspace/
    npm run dev
    ```
 
-   Open the provided URL (typically `http://localhost:5173`) to use the application. Operators enter
-   their name to start logging readings.
+   Open the provided URL (typically `http://localhost:5173`) to use the application. Operators
+   authenticate through Auth0 before they can load site data.
 
-## Mock authentication
+## Authentication
 
-Authentication is mocked by capturing the operator name and role on login. The selected role is
-sent to the API on every request and enforces the following permissions:
+Auth0 protects both the API and client:
 
-- **Admin** – full access to create sites, register assets and manage all measurements.
-- **Field operator** – can record new measurements and delete ones they created, but cannot add
-  new sites or assets.
-- **Analyst** – read-only access to site details, reports and measurement history.
-
-Replace this logic with a proper auth provider when needed.
+- The SPA performs a PKCE flow against your Auth0 tenant and requests an access token for the API
+  audience defined in `VITE_AUTH0_AUDIENCE`.
+- The API validates bearer tokens against the issuer in `AUTH0_ISSUER_BASE_URL` using the
+  tenant JWKS endpoint and enforces roles from the configured claim (`AUTH0_ROLE_CLAIM`).
+- Roles must resolve to one of `admin`, `field-operator` or `analyst` to gain access.
 
 ## Production build
 
