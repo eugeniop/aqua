@@ -22,7 +22,7 @@ const defaultPumpState = 'off';
 const emptyBulkRow = (pumpState = defaultPumpState) => ({
   date: defaultDateOnly(),
   time: '',
-  depth: '',
+  depthToWater: '',
   pumpState,
   comment: ''
 });
@@ -80,96 +80,6 @@ const historyFetchers = {
   flowmeter: getFlowmeterReadings
 };
 
-const formatDateTime = (value) => (value ? new Date(value).toLocaleString() : '—');
-
-const historyColumns = {
-  well: [
-    {
-      key: 'depth',
-      label: 'Depth (m)',
-      render: (item) => (item.depth == null ? '—' : Number(item.depth).toFixed(2))
-    },
-    {
-      key: 'recordedAt',
-      label: 'Recorded at',
-      render: (item) => formatDateTime(item.recordedAt)
-    },
-    { key: 'operator', label: 'Operator', render: (item) => item.operator || '—' },
-    {
-      key: 'comment',
-      label: 'Comment',
-      render: (item) => (item.comment ? item.comment : '—')
-    }
-  ],
-  tank: [
-    {
-      key: 'level',
-      label: 'Level (L)',
-      render: (item) =>
-        item.level == null ? '—' : Number(item.level).toLocaleString(undefined, { maximumFractionDigits: 2 })
-    },
-    {
-      key: 'recordedAt',
-      label: 'Recorded at',
-      render: (item) => formatDateTime(item.recordedAt)
-    },
-    { key: 'operator', label: 'Operator', render: (item) => item.operator || '—' },
-    {
-      key: 'comment',
-      label: 'Comment',
-      render: (item) => (item.comment ? item.comment : '—')
-    }
-  ],
-  flowmeter: [
-    {
-      key: 'instantaneousFlow',
-      label: 'Instantaneous (L/min)',
-      render: (item) =>
-        item.instantaneousFlow == null
-          ? '—'
-          : Number(item.instantaneousFlow).toLocaleString(undefined, {
-              minimumFractionDigits: 2,
-              maximumFractionDigits: 2
-            })
-    },
-    {
-      key: 'totalizedVolume',
-      label: 'Totalized volume (L)',
-      render: (item) =>
-        item.totalizedVolume == null
-          ? '—'
-          : Number(item.totalizedVolume).toLocaleString(undefined, {
-              minimumFractionDigits: 2,
-              maximumFractionDigits: 2
-            })
-    },
-    {
-      key: 'recordedAt',
-      label: 'Recorded at',
-      render: (item) => formatDateTime(item.recordedAt)
-    },
-    { key: 'operator', label: 'Operator', render: (item) => item.operator || '—' },
-    {
-      key: 'comment',
-      label: 'Comment',
-      render: (item) => (item.comment ? item.comment : '—')
-    }
-  ]
-};
-
-const chartSeriesConfig = {
-  well: [
-    { key: 'depth', label: 'Depth (m)', color: '#2563eb' }
-  ],
-  tank: [
-    { key: 'level', label: 'Level (L)', color: '#16a34a' }
-  ],
-  flowmeter: [
-    { key: 'instantaneousFlow', label: 'Instantaneous flow (L/min)', color: '#0ea5e9' },
-    { key: 'totalizedVolume', label: 'Totalized volume (L)', color: '#9333ea' }
-  ]
-};
-
 const initialHistoryState = {
   loading: false,
   error: '',
@@ -192,7 +102,7 @@ export default function SiteDetail({
   onRecordWell,
   onRecordWellBulk
 }) {
-  const { t } = useTranslation();
+  const { t, formatDateTime } = useTranslation();
   const typeLabels = useMemo(
     () => ({
       well: t('Well'),
@@ -233,9 +143,10 @@ export default function SiteDetail({
     () => ({
       well: [
         {
-          key: 'depth',
-          label: t('Depth (m)'),
-          render: (item) => (item.depth == null ? '—' : Number(item.depth).toFixed(2))
+          key: 'depthToWater',
+          label: t('Depth to water (m)'),
+          render: (item) =>
+            item.depthToWater == null ? '—' : Number(item.depthToWater).toFixed(2)
         },
         {
           key: 'pumpState',
@@ -319,7 +230,7 @@ export default function SiteDetail({
 
   const historyChartSeries = useMemo(
     () => ({
-      well: [{ key: 'depth', label: t('Depth (m)'), color: '#f97316' }],
+      well: [{ key: 'depthToWater', label: t('Depth to water (m)'), color: '#f97316' }],
       tank: [{ key: 'level', label: t('Level (L)'), color: '#16a34a' }],
       flowmeter: [
         { key: 'instantaneousFlow', label: t('Instantaneous flow (L/min)'), color: '#0ea5e9' },
@@ -876,7 +787,12 @@ export default function SiteDetail({
     setRecordModal({ type, feature });
     setRecordError('');
     if (type === 'well') {
-      setRecordForm({ depth: '', pumpState: defaultPumpState, comment: '', recordedAt: defaultTimestamp() });
+      setRecordForm({
+        depthToWater: '',
+        pumpState: defaultPumpState,
+        comment: '',
+        recordedAt: defaultTimestamp()
+      });
     } else if (type === 'tank') {
       setRecordForm({ level: '', comment: '', recordedAt: defaultTimestamp() });
     } else if (type === 'flowmeter') {
@@ -932,7 +848,9 @@ export default function SiteDetail({
   };
 
   const isBulkRowPristine = (row) =>
-    (row.depth === '' || row.depth == null) && !(row.time || '').trim() && !(row.comment || '').trim();
+    (row.depthToWater === '' || row.depthToWater == null) &&
+    !(row.time || '').trim() &&
+    !(row.comment || '').trim();
 
   const getPreviousPumpState = (rows, index) => {
     for (let cursor = index - 1; cursor >= 0; cursor -= 1) {
@@ -944,7 +862,7 @@ export default function SiteDetail({
     return defaultPumpState;
   };
 
-  const isBulkRowEmpty = (row) => row.depth === '' || row.depth == null;
+  const isBulkRowEmpty = (row) => row.depthToWater === '' || row.depthToWater == null;
 
   const openBulkWellModal = (well) => {
     if (!canRecordMeasurements) {
@@ -1068,16 +986,16 @@ export default function SiteDetail({
 
     rows.forEach((row, index) => {
       const trimmedComment = row.comment?.trim() || '';
-      const hasDepth = row.depth !== '' && row.depth != null;
+      const hasDepth = row.depthToWater !== '' && row.depthToWater != null;
 
       if (!hasDepth) {
         return;
       }
 
       const rowErrors = {};
-      const depthValue = Number(row.depth);
+      const depthValue = Number(row.depthToWater);
       if (Number.isNaN(depthValue)) {
-        rowErrors.depth = true;
+        rowErrors.depthToWater = true;
       }
 
       if (!row.date) {
@@ -1114,7 +1032,7 @@ export default function SiteDetail({
       lastPumpState = pumpState;
 
       payload.push({
-        depth: depthValue,
+        depthToWater: depthValue,
         pumpState,
         comment: trimmedComment || undefined,
         recordedAt
@@ -1283,15 +1201,15 @@ export default function SiteDetail({
     const { type, feature } = recordModal;
 
     if (type === 'well') {
-      if (!recordForm.depth) {
-        setRecordError(t('Depth is required.'));
+      if (!recordForm.depthToWater) {
+        setRecordError(t('Depth to water is required.'));
         return;
       }
 
       try {
         setRecordSubmitting(true);
         await onRecordWell(feature.id, {
-          depth: Number(recordForm.depth),
+          depthToWater: Number(recordForm.depthToWater),
           pumpState: recordForm.pumpState === 'on' ? 'on' : 'off',
           comment: recordForm.comment?.trim() || undefined,
           recordedAt: recordForm.recordedAt ? new Date(recordForm.recordedAt).toISOString() : undefined,
@@ -1531,7 +1449,7 @@ export default function SiteDetail({
                 ) : (
                   <HistoryChart
                     data={chartState.items}
-                    series={chartSeriesConfig[historyModal.type] || []}
+                    series={historyChartSeries[historyModal.type] || []}
                   />
                 )}
               </div>
@@ -1708,7 +1626,7 @@ export default function SiteDetail({
                 <tr>
                   <th>{t('Date')}</th>
                   <th>{t('Time')}</th>
-                  <th>{t('Depth (m)')}</th>
+                  <th>{t('Depth to water (m)')}</th>
                   <th>{t('Pump state')}</th>
                   <th className="bulk-comment-column">{t('Comment')}</th>
                   <th className="bulk-actions-column">{t('Actions')}</th>
@@ -1742,9 +1660,9 @@ export default function SiteDetail({
                           type="number"
                           min="0"
                           step="0.01"
-                          value={row.depth}
-                          onChange={handleBulkRowChange(index, 'depth')}
-                          className={rowErrors.depth ? 'input-error' : ''}
+                          value={row.depthToWater}
+                          onChange={handleBulkRowChange(index, 'depthToWater')}
+                          className={rowErrors.depthToWater ? 'input-error' : ''}
                         />
                       </td>
                       <td>
@@ -1777,7 +1695,9 @@ export default function SiteDetail({
             </table>
           </div>
           <p className="bulk-helper-text">
-            {t('Only rows with depth or a comment will be saved. Empty rows are discarded automatically.')}
+            {t(
+              'Only rows with depth to water or a comment will be saved. Empty rows are discarded automatically.'
+            )}
           </p>
           {bulkError && <p className="form-error">{bulkError}</p>}
         </Modal>
@@ -1916,13 +1836,13 @@ export default function SiteDetail({
               {recordModal.type === 'well' && (
                 <>
                   <label>
-                    {t('Depth (m)')}
+                    {t('Depth to water (m)')}
                     <input
                       type="number"
                       min="0"
                       step="0.01"
-                      value={recordForm.depth}
-                      onChange={handleRecordChange('depth')}
+                      value={recordForm.depthToWater}
+                      onChange={handleRecordChange('depthToWater')}
                       required
                     />
                   </label>

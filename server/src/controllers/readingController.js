@@ -5,11 +5,16 @@ import { isAdmin, isFieldOperator } from '../middleware/auth.js';
 
 const normalizePumpState = (value) => (value === 'on' ? 'on' : 'off');
 
+const toUtcDate = (value) => {
+  const parsed = value ? new Date(value) : new Date();
+  return new Date(parsed.toISOString());
+};
+
 const sanitizeBody = ({ recordedAt, operator, comment, pumpState }) => {
   const normalizedPumpState = pumpState == null ? undefined : normalizePumpState(pumpState);
 
   return {
-    recordedAt: recordedAt ? new Date(recordedAt) : new Date(),
+    recordedAt: toUtcDate(recordedAt),
     operator,
     comment,
     ...(normalizedPumpState ? { pumpState: normalizedPumpState } : {})
@@ -100,7 +105,7 @@ const formatHistoryEntry = (doc) => ({
   level: doc.level ?? undefined,
   instantaneousFlow: doc.instantaneousFlow ?? undefined,
   totalizedVolume: doc.totalizedVolume ?? undefined,
-  depth: doc.depth ?? undefined,
+  depthToWater: doc.depthToWater ?? doc.depth ?? undefined,
   pumpState: doc.pumpState ?? undefined
 });
 
@@ -205,12 +210,14 @@ export const recordWellMeasurement = async (req, res) => {
     }
 
     const { wellId } = req.params;
-    const { depth, comment, recordedAt, operator: providedOperator, pumpState } = req.body;
+    const { depth, depthToWater, comment, recordedAt, operator: providedOperator, pumpState } =
+      req.body;
     const operator = resolveOperatorName(req, providedOperator);
     const normalizedPumpState = normalizePumpState(pumpState);
+    const waterDepth = depthToWater ?? depth;
 
-    if (depth == null) {
-      return res.status(400).json({ message: 'Depth is required' });
+    if (waterDepth == null) {
+      return res.status(400).json({ message: 'Depth to water is required.' });
     }
 
     if (!operator) {
@@ -220,14 +227,14 @@ export const recordWellMeasurement = async (req, res) => {
     const payload = {
       ...sanitizeBody({ recordedAt, operator, comment, pumpState: normalizedPumpState }),
       well: wellId,
-      depth,
+      depthToWater: waterDepth,
       pumpState: normalizedPumpState
     };
     const measurement = await WellMeasurement.create(payload);
     res.status(201).json({
       id: measurement._id.toString(),
       well: wellId,
-      depth: measurement.depth,
+      depthToWater: measurement.depthToWater,
       operator: measurement.operator,
       comment: measurement.comment ?? '',
       recordedAt: measurement.recordedAt,
@@ -263,9 +270,10 @@ export const recordWellMeasurementsBulk = async (req, res) => {
 
     for (let index = 0; index < trimmed.length; index += 1) {
       const entry = trimmed[index] ?? {};
-      const { depth, comment, recordedAt, pumpState } = entry;
+      const { depth, depthToWater, comment, recordedAt, pumpState } = entry;
+      const waterDepth = depthToWater ?? depth;
 
-      if (depth == null) {
+      if (waterDepth == null) {
         continue;
       }
 
@@ -279,7 +287,7 @@ export const recordWellMeasurementsBulk = async (req, res) => {
       payload.push({
         ...sanitizeBody({ recordedAt, operator, comment, pumpState: normalizedPumpState }),
         well: wellId,
-        depth,
+        depthToWater: waterDepth,
         pumpState: normalizedPumpState
       });
     }
@@ -293,7 +301,7 @@ export const recordWellMeasurementsBulk = async (req, res) => {
       items: measurementsCreated.map((measurement) => ({
         id: measurement._id.toString(),
         well: wellId,
-        depth: measurement.depth,
+        depthToWater: measurement.depthToWater,
         operator: measurement.operator,
         comment: measurement.comment ?? '',
         recordedAt: measurement.recordedAt

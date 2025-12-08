@@ -1,10 +1,8 @@
 import './AssetCards.css';
 import { useTranslation } from '../i18n/LocalizationProvider.jsx';
 
-const formatDate = (value) => (value ? new Date(value).toLocaleString() : '—');
-
 export default function FlowmeterCard({ flowmeter, onViewHistory, onAddReading }) {
-  const { t } = useTranslation();
+  const { t, formatDateTime } = useTranslation();
   return (
     <div className="asset-card">
       <header>
@@ -26,7 +24,11 @@ export default function FlowmeterCard({ flowmeter, onViewHistory, onAddReading }
               })}
             </li>
             <li>{t('Totalized volume: {value} L', { value: flowmeter.latestReading.totalizedVolume })}</li>
-            <li>{t('Recorded: {value}', { value: formatDate(flowmeter.latestReading.recordedAt) })}</li>
+            <li>
+              {t('Recorded: {value}', {
+                value: formatDateTime(flowmeter.latestReading.recordedAt)
+              })}
+            </li>
             <li>{t('Operator: {name}', { name: flowmeter.latestReading.operator })}</li>
             {flowmeter.latestReading.comment && (
               <li>{t('Notes: {comment}', { comment: flowmeter.latestReading.comment })}</li>

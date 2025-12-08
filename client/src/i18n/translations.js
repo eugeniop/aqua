@@ -3,6 +3,9 @@ export const translations = {
     languageLabel: 'Language',
     english: 'English',
     swahili: 'Swahili',
+    timeZoneLabel: 'Time zone',
+    pacificTime: 'Pacific Time (PST/PDT)',
+    tanzaniaTime: 'Tanzania (EAT)',
     'Add bulk measurements': 'Add bulk measurements',
     'Enter at least one measurement to continue.': 'Enter at least one measurement to continue.',
     'Please fix the highlighted fields before saving.': 'Please fix the highlighted fields before saving.',
@@ -13,13 +16,15 @@ export const translations = {
     'Discard and exit': 'Discard and exit',
     'You have unsaved measurements. Are you sure you want to leave?':
       'You have unsaved measurements. Are you sure you want to leave?',
-    'Only rows with depth or a comment will be saved. Empty rows are discarded automatically.':
-      'Only rows with depth or a comment will be saved. Empty rows are discarded automatically.',
+    'Only rows with depth to water or a comment will be saved. Empty rows are discarded automatically.':
+      'Only rows with depth to water or a comment will be saved. Empty rows are discarded automatically.',
     'Saving…': 'Saving…',
     Date: 'Date',
     Time: 'Time',
     'Each measurement must be at or after the previous entry.':
       'Each measurement must be at or after the previous entry.',
+    'Depth to water (m)': 'Depth to water (m)',
+    'Depth to water is required.': 'Depth to water is required.',
     'Showing range': 'Showing {start}–{end} of {total}',
     'Recorded at label': 'Date & time',
     'Pump state': 'Pump state',
@@ -35,6 +40,9 @@ export const translations = {
     languageLabel: 'Lugha',
     english: 'Kiingereza',
     swahili: 'Kiswahili',
+    timeZoneLabel: 'Kanda ya saa',
+    pacificTime: 'Saa za Pasifiki (PST/PDT)',
+    tanzaniaTime: 'Saa za Tanzania (EAT)',
     'Aqua Monitor': 'Aqua Monitor',
     'Capture water production, storage and usage data with confidence.':
       'Kusanya taarifa za uzalishaji, uhifadhi na matumizi ya maji kwa uhakika.',
@@ -146,7 +154,7 @@ export const translations = {
     'Add reading title': 'Ongeza usomaji',
     'Recorded at label': 'Imerekodiwa',
     'Comment (optional)': 'Maelezo (hiari)',
-    'Depth (m)': 'Kina (m)',
+    'Depth to water (m)': 'Kina cha maji (m)',
     'Level (L)': 'Kiwango (L)',
     'Instantaneous (L/min)': 'Kasi ya papo hapo (L/dakika)',
     'Totalized volume (L)': 'Kiasi jumla (L)',
@@ -177,7 +185,7 @@ export const translations = {
     'Unable to save flowmeter.': 'Imeshindikana kuhifadhi kipima mtiririko.',
     'You do not have permission to record entries.': 'Huna ruhusa ya kurekodi taarifa.',
     'Your user name is required to record entries.': 'Jina lako linahitajika ili kurekodi taarifa.',
-    'Depth is required.': 'Kina kinahitajika.',
+    'Depth to water is required.': 'Kina cha maji kinahitajika.',
     'Level is required.': 'Kiwango kinahitajika.',
     'Both flow values are required.': 'Thamani zote za mtiririko zinahitajika.',
     'Unable to save measurement.': 'Imeshindikana kuhifadhi kipimo.',
@@ -189,8 +197,8 @@ export const translations = {
     'Pump state: {state}': 'Hali ya pampu: {state}',
     'Confirm bulk save': 'Thibitisha uhifadhi wa wingi',
     'You are saving {count} measurements. Save?': 'Unaokoa vipimo {count}. Hifadhi?',
-    'Only rows with depth or a comment will be saved. Empty rows are discarded automatically.':
-      'Safu zilizo na kina au maelezo pekee ndizo zitahifadhiwa. Safu tupu zitaondolewa kiotomatiki.',
+    'Only rows with depth to water or a comment will be saved. Empty rows are discarded automatically.':
+      'Safu zilizo na kina cha maji au maelezo pekee ndizo zitahifadhiwa. Safu tupu zitaondolewa kiotomatiki.',
     'Leave bulk editor?': 'Kuacha kihariri cha wingi?',
     'Continue editing': 'Endelea kuhariri',
     'Discard and exit': 'Futa na utoke',

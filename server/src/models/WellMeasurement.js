@@ -15,7 +15,8 @@ const wellMeasurementSchema = new mongoose.Schema(
     depth: {
       type: Number,
       required: true,
-      min: 0
+      min: 0,
+      alias: 'depthToWater'
     },
     comment: {
       type: String,
