@@ -1,11 +1,12 @@
 const API_ROOT = (import.meta.env.VITE_API_URL || 'http://localhost:4000/api').replace(/\/$/, '');
 
-let authContext = { name: '', role: '' };
+let authContext = { name: '', role: '', getToken: null };
 
-export const setAuthContext = ({ name, role }) => {
+export const setAuthContext = ({ name, role, getToken }) => {
   authContext = {
     name: name?.trim() || '',
-    role: role || ''
+    role: role || '',
+    getToken: getToken || null
   };
 };
 
@@ -13,13 +14,17 @@ const jsonHeaders = {
   'Content-Type': 'application/json'
 };
 
-const buildHeaders = (base = {}) => {
+const buildHeaders = async (base = {}) => {
   const headers = { ...base };
-  if (authContext.role) {
-    headers['X-User-Role'] = authContext.role;
-  }
-  if (authContext.name) {
-    headers['X-User-Name'] = authContext.name;
+  if (typeof authContext.getToken === 'function') {
+    try {
+      const token = await authContext.getToken();
+      if (token) {
+        headers.Authorization = `Bearer ${token}`;
+      }
+    } catch (error) {
+      console.error('Failed to retrieve access token', error);
+    }
   }
   return headers;
 };
@@ -45,97 +50,94 @@ const toQueryString = (params = {}) => {
   return query ? `?${query}` : '';
 };
 
-export const getSites = () =>
-  fetch(`${API_ROOT}/sites`, { headers: buildHeaders() }).then(handleResponse);
+const request = async (path, options = {}) => {
+  const headers = await buildHeaders(options.headers);
+  return fetch(`${API_ROOT}${path}`, {
+    ...options,
+    headers
+  }).then(handleResponse);
+};
+
+export const getSites = () => request('/sites');
 
 export const createSite = (payload) =>
-  fetch(`${API_ROOT}/sites`, {
+  request('/sites', {
     method: 'POST',
-    headers: buildHeaders(jsonHeaders),
+    headers: jsonHeaders,
     body: JSON.stringify(payload)
-  }).then(handleResponse);
+  });
 
-export const getSiteDetail = (siteId) =>
-  fetch(`${API_ROOT}/sites/${siteId}`, { headers: buildHeaders() }).then(handleResponse);
+export const getSiteDetail = (siteId) => request(`/sites/${siteId}`);
 
 export const addWell = (siteId, payload) =>
-  fetch(`${API_ROOT}/sites/${siteId}/wells`, {
+  request(`/sites/${siteId}/wells`, {
     method: 'POST',
-    headers: buildHeaders(jsonHeaders),
+    headers: jsonHeaders,
     body: JSON.stringify(payload)
-  }).then(handleResponse);
+  });
 
 export const addTank = (siteId, payload) =>
-  fetch(`${API_ROOT}/sites/${siteId}/tanks`, {
+  request(`/sites/${siteId}/tanks`, {
     method: 'POST',
-    headers: buildHeaders(jsonHeaders),
+    headers: jsonHeaders,
     body: JSON.stringify(payload)
-  }).then(handleResponse);
+  });
 
 export const addFlowmeter = (siteId, payload) =>
-  fetch(`${API_ROOT}/sites/${siteId}/flowmeters`, {
+  request(`/sites/${siteId}/flowmeters`, {
     method: 'POST',
-    headers: buildHeaders(jsonHeaders),
+    headers: jsonHeaders,
     body: JSON.stringify(payload)
-  }).then(handleResponse);
+  });
 
 export const recordTankLevel = (tankId, payload) =>
-  fetch(`${API_ROOT}/tanks/${tankId}/readings`, {
+  request(`/tanks/${tankId}/readings`, {
     method: 'POST',
-    headers: buildHeaders(jsonHeaders),
+    headers: jsonHeaders,
     body: JSON.stringify(payload)
-  }).then(handleResponse);
+  });
 
 export const recordFlowmeterReading = (flowmeterId, payload) =>
-  fetch(`${API_ROOT}/flowmeters/${flowmeterId}/readings`, {
+  request(`/flowmeters/${flowmeterId}/readings`, {
     method: 'POST',
-    headers: buildHeaders(jsonHeaders),
+    headers: jsonHeaders,
     body: JSON.stringify(payload)
-  }).then(handleResponse);
+  });
 
 export const recordWellMeasurement = (wellId, payload) =>
-  fetch(`${API_ROOT}/wells/${wellId}/measurements`, {
+  request(`/wells/${wellId}/measurements`, {
     method: 'POST',
-    headers: buildHeaders(jsonHeaders),
+    headers: jsonHeaders,
     body: JSON.stringify(payload)
-  }).then(handleResponse);
+  });
 
 export const recordWellMeasurementsBulk = (wellId, payload) =>
-  fetch(`${API_ROOT}/wells/${wellId}/measurements/bulk`, {
+  request(`/wells/${wellId}/measurements/bulk`, {
     method: 'POST',
-    headers: buildHeaders(jsonHeaders),
+    headers: jsonHeaders,
     body: JSON.stringify(payload)
-  }).then(handleResponse);
+  });
 
 export const getTankReadings = (tankId, params) =>
-  fetch(`${API_ROOT}/tanks/${tankId}/readings${toQueryString(params)}`, {
-    headers: buildHeaders()
-  }).then(handleResponse);
+  request(`/tanks/${tankId}/readings${toQueryString(params)}`);
 
 export const getFlowmeterReadings = (flowmeterId, params) =>
-  fetch(`${API_ROOT}/flowmeters/${flowmeterId}/readings${toQueryString(params)}`, {
-    headers: buildHeaders()
-  }).then(handleResponse);
+  request(`/flowmeters/${flowmeterId}/readings${toQueryString(params)}`);
 
 export const getWellMeasurements = (wellId, params) =>
-  fetch(`${API_ROOT}/wells/${wellId}/measurements${toQueryString(params)}`, {
-    headers: buildHeaders()
-  }).then(handleResponse);
+  request(`/wells/${wellId}/measurements${toQueryString(params)}`);
 
 export const deleteTankReading = (tankId, readingId) =>
-  fetch(`${API_ROOT}/tanks/${tankId}/readings/${readingId}`, {
-    method: 'DELETE',
-    headers: buildHeaders()
-  }).then(handleResponse);
+  request(`/tanks/${tankId}/readings/${readingId}`, {
+    method: 'DELETE'
+  });
 
 export const deleteFlowmeterReading = (flowmeterId, readingId) =>
-  fetch(`${API_ROOT}/flowmeters/${flowmeterId}/readings/${readingId}`, {
-    method: 'DELETE',
-    headers: buildHeaders()
-  }).then(handleResponse);
+  request(`/flowmeters/${flowmeterId}/readings/${readingId}`, {
+    method: 'DELETE'
+  });
 
 export const deleteWellMeasurement = (wellId, measurementId) =>
-  fetch(`${API_ROOT}/wells/${wellId}/measurements/${measurementId}`, {
-    method: 'DELETE',
-    headers: buildHeaders()
-  }).then(handleResponse);
+  request(`/wells/${wellId}/measurements/${measurementId}`, {
+    method: 'DELETE'
+  });
