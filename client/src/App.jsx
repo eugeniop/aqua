@@ -27,7 +27,7 @@ export default function App() {
   const [loadingSite, setLoadingSite] = useState(false);
   const [error, setError] = useState('');
   const [showSitePanel, setShowSitePanel] = useState(true);
-  const { t, language, setLanguage } = useTranslation();
+  const { t, language, setLanguage, timeZone, setTimeZone } = useTranslation();
 
   useEffect(() => {
     if (!currentUser) {
@@ -176,6 +176,13 @@ export default function App() {
               <select value={language} onChange={(event) => setLanguage(event.target.value)}>
                 <option value="en">{t('english')}</option>
                 <option value="sw">{t('swahili')}</option>
+              </select>
+            </label>
+            <label>
+              {t('timeZoneLabel')}
+              <select value={timeZone} onChange={(event) => setTimeZone(event.target.value)}>
+                <option value="America/Los_Angeles">{t('pacificTime')}</option>
+                <option value="Africa/Dar_es_Salaam">{t('tanzaniaTime')}</option>
               </select>
             </label>
           </div>

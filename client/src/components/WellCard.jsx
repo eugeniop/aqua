@@ -1,10 +1,12 @@
 import './AssetCards.css';
 import { useTranslation } from '../i18n/LocalizationProvider.jsx';
 
-const formatDate = (value) => (value ? new Date(value).toLocaleString() : '—');
-
 export default function WellCard({ well, onViewHistory, onAddMeasurement, onAddBulkMeasurement }) {
-  const { t } = useTranslation();
+  const { t, formatDateTime } = useTranslation();
+  const depthDisplay =
+    well.latestMeasurement?.depthToWater == null
+      ? '—'
+      : Number(well.latestMeasurement.depthToWater).toFixed(2);
   return (
     <div className="asset-card">
       <header>
@@ -22,7 +24,7 @@ export default function WellCard({ well, onViewHistory, onAddMeasurement, onAddB
           <ul>
             <li>
               {t('Depth to water: {value} m', {
-                value: Number(well.latestMeasurement.depth).toFixed(2)
+                value: depthDisplay
               })}
             </li>
             {well.latestMeasurement.pumpState && (
@@ -32,7 +34,11 @@ export default function WellCard({ well, onViewHistory, onAddMeasurement, onAddB
                 })}
               </li>
             )}
-            <li>{t('Recorded: {value}', { value: formatDate(well.latestMeasurement.recordedAt) })}</li>
+            <li>
+              {t('Recorded: {value}', {
+                value: formatDateTime(well.latestMeasurement.recordedAt)
+              })}
+            </li>
             <li>{t('Operator: {name}', { name: well.latestMeasurement.operator })}</li>
             {well.latestMeasurement.comment && (
               <li>{t('Notes: {comment}', { comment: well.latestMeasurement.comment })}</li>

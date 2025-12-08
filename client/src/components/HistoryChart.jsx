@@ -7,8 +7,6 @@ const HEIGHT = 280;
 const WIDTH = 720;
 const TICK_COUNT = 4;
 
-const formatDateTime = (value) => new Date(value).toLocaleString();
-
 const buildPath = (points, scaleX, scaleY) => {
   if (!points.length) {
     return '';
@@ -46,7 +44,7 @@ const buildTicks = (start, end, count) => {
 };
 
 export default function HistoryChart({ data, series = [], width = WIDTH, height = HEIGHT }) {
-  const { t } = useTranslation();
+  const { t, formatDateTime } = useTranslation();
   const prepared = useMemo(() => {
     const parsed = (data || [])
       .map((item) => {

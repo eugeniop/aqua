@@ -1,10 +1,8 @@
 import './AssetCards.css';
 import { useTranslation } from '../i18n/LocalizationProvider.jsx';
 
-const formatDate = (value) => (value ? new Date(value).toLocaleString() : '—');
-
 export default function TankCard({ tank, onViewHistory, onAddReading }) {
-  const { t } = useTranslation();
+  const { t, formatDateTime } = useTranslation();
   return (
     <div className="asset-card">
       <header>
@@ -22,7 +20,11 @@ export default function TankCard({ tank, onViewHistory, onAddReading }) {
         {tank.latestReading ? (
           <ul>
             <li>{t('Level: {value} L', { value: tank.latestReading.level })}</li>
-            <li>{t('Recorded: {value}', { value: formatDate(tank.latestReading.recordedAt) })}</li>
+            <li>
+              {t('Recorded: {value}', {
+                value: formatDateTime(tank.latestReading.recordedAt)
+              })}
+            </li>
             <li>{t('Operator: {name}', { name: tank.latestReading.operator })}</li>
             {tank.latestReading.comment && <li>{t('Notes: {comment}', { comment: tank.latestReading.comment })}</li>}
           </ul>
