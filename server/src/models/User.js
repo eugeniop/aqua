@@ -13,6 +13,14 @@ const userSchema = new mongoose.Schema(
       unique: true,
       lowercase: true,
       trim: true
+    },
+    phone: {
+      type: String,
+      trim: true
+    },
+    enabled: {
+      type: Boolean,
+      default: true
     }
   },
   {

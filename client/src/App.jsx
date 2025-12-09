@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { auth0Client } from './auth/auth0Client.js';
 import SiteList from './components/SiteList.jsx';
 import SiteDetail from './components/SiteDetail.jsx';
+import UserManagement from './components/UserManagement.jsx';
 import { useTranslation } from './i18n/LocalizationProvider.jsx';
 import './components/LoginForm.css';
 import {
@@ -15,7 +16,10 @@ import {
   recordFlowmeterReading,
   recordWellMeasurement,
   recordWellMeasurementsBulk,
-  setAuthContext
+  setAuthContext,
+  getUsers,
+  createUser,
+  updateUserStatus
 } from './api.js';
 import './App.css';
 
@@ -30,6 +34,9 @@ export default function App() {
   const [authLoading, setAuthLoading] = useState(true);
   const [authError, setAuthError] = useState('');
   const [showSitePanel, setShowSitePanel] = useState(true);
+  const [users, setUsers] = useState([]);
+  const [userError, setUserError] = useState('');
+  const [loadingUsers, setLoadingUsers] = useState(false);
   const { t, language, setLanguage, timeZone, setTimeZone } = useTranslation();
 
   useEffect(() => {
@@ -62,6 +69,13 @@ export default function App() {
       return;
     }
     loadSites();
+  }, [currentUser]);
+
+  useEffect(() => {
+    if (currentUser?.role !== 'superadmin') {
+      return;
+    }
+    loadUsers();
   }, [currentUser]);
 
   const handleLogin = () => {
@@ -171,6 +185,40 @@ export default function App() {
     await loadSiteDetail(siteId);
   };
 
+  const loadUsers = async () => {
+    setLoadingUsers(true);
+    setUserError('');
+    try {
+      const result = await getUsers();
+      setUsers(result);
+    } catch (err) {
+      setUserError(err.message || t('Unable to load users'));
+    } finally {
+      setLoadingUsers(false);
+    }
+  };
+
+  const handleCreateUser = async (payload) => {
+    setUserError('');
+    try {
+      const created = await createUser(payload);
+      setUsers((prev) => [created, ...prev.filter((user) => user.id !== created.id)]);
+    } catch (err) {
+      setUserError(err.message || t('Unable to save user.'));
+      throw err;
+    }
+  };
+
+  const handleToggleUser = async (userId, enabled) => {
+    setUserError('');
+    try {
+      const updated = await updateUserStatus(userId, { enabled });
+      setUsers((prev) => prev.map((user) => (user.id === userId ? updated : user)));
+    } catch (err) {
+      setUserError(err.message || t('Unable to update user.'));
+    }
+  };
+
   const toggleSitePanel = () => {
     setShowSitePanel((value) => !value);
   };
@@ -196,9 +244,13 @@ export default function App() {
   }
 
   const role = currentUser.role;
-  const canCreateSites = role === 'admin';
-  const canManageFeatures = role === 'admin';
-  const canRecordMeasurements = role === 'admin' || role === 'field-operator';
+  const isSuperAdmin = role === 'superadmin';
+  const canCreateSites = role === 'admin' || isSuperAdmin;
+  const canManageFeatures = role === 'admin' || isSuperAdmin;
+  const canRecordMeasurements = role === 'admin' || role === 'field-operator' || isSuperAdmin;
+  const currentUserId = users.find(
+    (user) => user.email?.toLowerCase() === (currentUser.email || '').toLowerCase()
+  )?.id;
 
   return (
     <div className="app-shell">
@@ -243,6 +295,16 @@ export default function App() {
             </label>
           </div>
         </div>
+        {isSuperAdmin && (
+          <UserManagement
+            users={users}
+            loading={loadingUsers}
+            error={userError}
+            onCreate={handleCreateUser}
+            onToggle={handleToggleUser}
+            currentUserId={currentUserId}
+          />
+        )}
         {error && <div className="banner error">{error}</div>}
         {loadingSites || loadingSite ? (
           <div className="loading">{t('Loading data…')}</div>

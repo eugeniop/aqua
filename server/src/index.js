@@ -5,7 +5,8 @@ import dotenv from 'dotenv';
 
 import siteRoutes from './routes/sites.js';
 import readingRoutes from './routes/readings.js';
-import { requireAuth } from './middleware/auth.js';
+import userRoutes from './routes/users.js';
+import { ensureRole, requireAuth } from './middleware/auth.js';
 
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -25,6 +26,7 @@ app.get('/api/health', (_req, res) => {
 });
 
 app.use('/api/sites', requireAuth, siteRoutes);
+app.use('/api/users', requireAuth, ensureRole('superadmin'), userRoutes);
 app.use('/api', requireAuth, readingRoutes);
 
 const port = process.env.PORT || 4000;
