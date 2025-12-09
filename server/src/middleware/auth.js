@@ -1,13 +1,16 @@
 import crypto from 'crypto';
+import User from '../models/User.js';
 
 import dotenv from 'dotenv';
 dotenv.config();
 
-const VALID_ROLES = ['admin', 'field-operator', 'analyst'];
+const VALID_ROLES = ['superadmin', 'admin', 'field-operator', 'analyst'];
 const ISSUER_BASE_URL = (process.env.AUTH0_ISSUER_BASE_URL || '').replace(/\/$/, '');
 const AUDIENCE = process.env.AUTH0_AUDIENCE || '';
 const ROLE_CLAIM = process.env.AUTH0_ROLE_CLAIM || 'https://aqua.example.com/roles';
 const JWKS_TTL_MS = 1000 * 60 * 15; // 15 minutes
+const REGISTRATION_ERROR_MESSAGE =
+  'You are not registered to use this application. Please contact administrator / Hujasajiliwa kutumia programu hii. Tafadhali wasiliana na msimamizi.';
 
 let jwksCache = { keys: [], fetchedAt: 0 };
 
@@ -135,19 +138,40 @@ export const requireAuth = async (req, res, next) => {
 
     const roles = payload[ROLE_CLAIM];
     const role = Array.isArray(roles) ? roles[0] : roles;
+    const email = (payload.email || '').trim().toLowerCase();
 
     if (!role || !VALID_ROLES.includes(role)) {
       return res.status(403).json({ message: 'Invalid or missing role' });
     }
 
-    req.user = { role, name: payload.name || payload.nickname || payload.email || '' };
+    if (!email) {
+      return res.status(401).json({ message: 'Email address not available on token' });
+    }
+
+    const user = await User.findOne({ email });
+
+    if (!user) {
+      return res.status(403).json({ message: REGISTRATION_ERROR_MESSAGE });
+    }
+
+    if (!user.enabled) {
+      return res.status(403).json({ message: 'Your account is disabled. Please contact an administrator.' });
+    }
+
+    req.user = {
+      id: user._id.toString(),
+      role,
+      email,
+      name: user.name?.trim() || payload.name || payload.nickname || payload.email || ''
+    };
     next();
   } catch (error) {
     return res.status(401).json({ message: error.message || 'Unauthorized' });
   }
 };
 
-export const isAdmin = (req) => req.user?.role === 'admin';
+export const isSuperAdmin = (req) => req.user?.role === 'superadmin';
+export const isAdmin = (req) => req.user?.role === 'admin' || isSuperAdmin(req);
 export const isFieldOperator = (req) => req.user?.role === 'field-operator';
 
 export const ensureRole = (...allowedRoles) => (req, res, next) => {

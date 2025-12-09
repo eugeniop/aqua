@@ -198,7 +198,7 @@ export const getUserProfile = () => {
   const resolvedRole = Array.isArray(roles) ? roles[0] : roles;
 
   const name = payload.name || payload.nickname || payload.email || '';
-  return { name, role: resolvedRole || '' };
+  return { name, role: resolvedRole || '', email: payload.email || '' };
 };
 
 export const logout = () => {
