@@ -1,7 +1,7 @@
 import crypto from 'crypto';
 import User from '../models/User.js';
 
-const VALID_ROLES = ['admin', 'field-operator', 'analyst'];
+const VALID_ROLES = ['superadmin', 'admin', 'field-operator', 'analyst'];
 const ISSUER_BASE_URL = (process.env.AUTH0_ISSUER_BASE_URL || '').replace(/\/$/, '');
 const AUDIENCE = process.env.AUTH0_AUDIENCE || '';
 const ROLE_CLAIM = process.env.AUTH0_ROLE_CLAIM || 'https://aqua.example.com/roles';
@@ -151,14 +151,24 @@ export const requireAuth = async (req, res, next) => {
       return res.status(403).json({ message: REGISTRATION_ERROR_MESSAGE });
     }
 
-    req.user = { role, email, name: user.name?.trim() || payload.name || payload.nickname || payload.email || '' };
+    if (!user.enabled) {
+      return res.status(403).json({ message: 'Your account is disabled. Please contact an administrator.' });
+    }
+
+    req.user = {
+      id: user._id.toString(),
+      role,
+      email,
+      name: user.name?.trim() || payload.name || payload.nickname || payload.email || ''
+    };
     next();
   } catch (error) {
     return res.status(401).json({ message: error.message || 'Unauthorized' });
   }
 };
 
-export const isAdmin = (req) => req.user?.role === 'admin';
+export const isSuperAdmin = (req) => req.user?.role === 'superadmin';
+export const isAdmin = (req) => req.user?.role === 'admin' || isSuperAdmin(req);
 export const isFieldOperator = (req) => req.user?.role === 'field-operator';
 
 export const ensureRole = (...allowedRoles) => (req, res, next) => {

@@ -141,3 +141,19 @@ export const deleteWellMeasurement = (wellId, measurementId) =>
   request(`/wells/${wellId}/measurements/${measurementId}`, {
     method: 'DELETE'
   });
+
+export const getUsers = () => request('/users');
+
+export const createUser = (payload) =>
+  request('/users', {
+    method: 'POST',
+    headers: jsonHeaders,
+    body: JSON.stringify(payload)
+  });
+
+export const updateUserStatus = (userId, payload) =>
+  request(`/users/${userId}`, {
+    method: 'PATCH',
+    headers: jsonHeaders,
+    body: JSON.stringify(payload)
+  });
