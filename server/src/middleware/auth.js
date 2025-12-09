@@ -1,5 +1,8 @@
 import crypto from 'crypto';
 
+import dotenv from 'dotenv';
+dotenv.config();
+
 const VALID_ROLES = ['admin', 'field-operator', 'analyst'];
 const ISSUER_BASE_URL = (process.env.AUTH0_ISSUER_BASE_URL || '').replace(/\/$/, '');
 const AUDIENCE = process.env.AUTH0_AUDIENCE || '';

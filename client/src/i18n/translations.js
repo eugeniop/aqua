@@ -8,7 +8,7 @@ export const translations = {
     pacificTime: 'Pacific Time (PST/PDT)',
     tanzaniaTime: 'Tanzania (EAT)',
     'Loading authentication…': 'Loading authentication…',
-    'Sign in with your Auth0 account to continue.': 'Sign in with your Auth0 account to continue.',
+    'Sign in to continue.': 'Log in to continue.',
     'Log out': 'Log out',
     'Unknown user': 'Unknown user',
     'Add bulk measurements': 'Add bulk measurements',
@@ -52,7 +52,7 @@ export const translations = {
     'Capture water production, storage and usage data with confidence.':
       'Kusanya taarifa za uzalishaji, uhifadhi na matumizi ya maji kwa uhakika.',
     'Loading authentication…': 'Inathibitisha utambulisho…',
-    'Sign in with your Auth0 account to continue.': 'Ingia na akaunti yako ya Auth0 ili kuendelea.',
+    'Sign in to continue.': 'Ingia ili kuendelea.',
     'Log out': 'Toka',
     'Unknown user': 'Mtumiaji hajulikani',
     'Operator name': 'Jina la mtumiaji',

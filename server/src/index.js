@@ -3,6 +3,8 @@ import cors from 'cors';
 import mongoose from 'mongoose';
 import dotenv from 'dotenv';
 
+dotenv.config();
+
 import siteRoutes from './routes/sites.js';
 import readingRoutes from './routes/readings.js';
 import { requireAuth } from './middleware/auth.js';
@@ -13,7 +15,7 @@ import { fileURLToPath } from 'url';
 const __dirname = path.dirname(fileURLToPath(import.meta.url)); 
 const __filename = fileURLToPath(import.meta.url);
 
-dotenv.config();
+//dotenv.config();
 
 const app = express();
 

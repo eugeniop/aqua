@@ -185,7 +185,7 @@ export default function App() {
         <h1>{t('Aqua Monitor')}</h1>
         <p className="tagline">{t('Capture water production, storage and usage data with confidence.')}</p>
         <div className="card">
-          <p>{t('Sign in with your Auth0 account to continue.')}</p>
+          <p>{t('Sign in to continue.')}</p>
           {authError && <p className="error">{authError}</p>}
           <button type="button" onClick={handleLogin}>
             {t('Continue')}
