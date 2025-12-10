@@ -2,6 +2,15 @@ const API_ROOT = (import.meta.env.VITE_API_URL || 'http://localhost:4000/api').r
 
 let authContext = { name: '', role: '', getToken: null };
 
+class ApiError extends Error {
+  constructor(message, status, translations) {
+    super(message);
+    this.name = 'ApiError';
+    this.status = status;
+    this.translations = translations;
+  }
+}
+
 export const setAuthContext = ({ name, role, getToken }) => {
   authContext = {
     name: name?.trim() || '',
@@ -33,7 +42,7 @@ const handleResponse = async (response) => {
   const data = await response.json().catch(() => ({}));
   if (!response.ok) {
     const message = data?.message || 'Request failed';
-    throw new Error(message);
+    throw new ApiError(message, response.status, data?.translations);
   }
   return data;
 };
