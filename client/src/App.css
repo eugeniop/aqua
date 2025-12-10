@@ -47,12 +47,30 @@
   border: none;
   background: #2563eb;
   color: #ffffff;
-  font-weight: 600;
-  padding: 0.5rem 0.85rem;
-  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
   cursor: pointer;
   box-shadow: 0 10px 25px rgba(37, 99, 235, 0.15);
   transition: background 0.2s ease, transform 0.2s ease;
+}
+
+.chevron {
+  width: 0.4rem;
+  height: 0.4rem;
+  border: solid #ffffff;
+  border-width: 0 2px 2px 0;
+  display: inline-block;
+  padding: 5px;
+  transform: rotate(135deg);
+  transition: transform 0.2s ease;
+}
+
+.chevron.right {
+  transform: rotate(-45deg);
 }
 
 button.secondary {
