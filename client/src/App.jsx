@@ -5,6 +5,7 @@ import SiteDetail from './components/SiteDetail.jsx';
 import UserManagement from './components/UserManagement.jsx';
 import { useTranslation } from './i18n/LocalizationProvider.jsx';
 import './components/LoginForm.css';
+import AccessNotice from './components/AccessNotice.jsx';
 import {
   getSites,
   createSite,
@@ -38,6 +39,7 @@ export default function App() {
   const [users, setUsers] = useState([]);
   const [userError, setUserError] = useState('');
   const [loadingUsers, setLoadingUsers] = useState(false);
+  const [accessNotice, setAccessNotice] = useState(null);
   const { t, language, setLanguage, timeZone, setTimeZone } = useTranslation();
 
   useEffect(() => {
@@ -66,18 +68,18 @@ export default function App() {
   }, [t]);
 
   useEffect(() => {
-    if (!currentUser) {
+    if (!currentUser || accessNotice) {
       return;
     }
     loadSites();
-  }, [currentUser]);
+  }, [currentUser, accessNotice]);
 
   useEffect(() => {
-    if (currentUser?.role !== 'superadmin') {
+    if (currentUser?.role !== 'superadmin' || accessNotice) {
       return;
     }
     loadUsers();
-  }, [currentUser]);
+  }, [currentUser, accessNotice]);
 
   useEffect(() => {
     if (currentUser?.role !== 'superadmin' && activeView === 'users') {
@@ -90,12 +92,14 @@ export default function App() {
   };
 
   const handleLogout = () => {
+    setAccessNotice(null);
     auth0Client.logout();
   };
 
   const loadSites = async () => {
     setLoadingSites(true);
     setError('');
+    setAccessNotice(null);
     if (!currentUser) {
       setLoadingSites(false);
       return;
@@ -116,7 +120,14 @@ export default function App() {
         setSelectedSiteId('');
       }
     } catch (err) {
-      setError(err.message || t('Unable to load sites'));
+      if (err.status === 403 && err.translations) {
+        setAccessNotice({ message: err.message, translations: err.translations });
+        setActiveSite(null);
+        setSites([]);
+        setSelectedSiteId('');
+      } else {
+        setError(err.message || t('Unable to load sites'));
+      }
     } finally {
       setLoadingSites(false);
     }
@@ -248,6 +259,16 @@ export default function App() {
           </button>
         </div>
       </div>
+    );
+  }
+
+  if (accessNotice) {
+    return (
+      <AccessNotice
+        message={accessNotice.message}
+        translations={accessNotice.translations}
+        onLogout={handleLogout}
+      />
     );
   }
 
