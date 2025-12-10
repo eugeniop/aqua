@@ -2,7 +2,13 @@ import { useMemo, useState } from 'react';
 import { useTranslation } from '../i18n/LocalizationProvider.jsx';
 import './UserManagement.css';
 
-const emptyForm = { name: '', email: '', phone: '', enabled: true };
+const roleOptions = [
+  { value: 'admin', labelKey: 'Admin' },
+  { value: 'field-operator', labelKey: 'Field operator' },
+  { value: 'analyst', labelKey: 'Analyst' }
+];
+
+const emptyForm = { name: '', email: '', phone: '', enabled: true, role: 'analyst' };
 
 export default function UserManagement({
   users = [],
@@ -10,6 +16,7 @@ export default function UserManagement({
   error = '',
   onCreate,
   onToggle,
+  onChangeRole,
   currentUserId
 }) {
   const { t, formatDateTime } = useTranslation();
@@ -110,6 +117,16 @@ export default function UserManagement({
               placeholder=""
             />
           </label>
+          <label>
+            {t('Assigned role')}
+            <select name="role" value={form.role} onChange={handleChange}>
+              {roleOptions.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {t(option.labelKey)}
+                </option>
+              ))}
+            </select>
+          </label>
           <label className="checkbox">
             <input
               type="checkbox"
@@ -138,6 +155,7 @@ export default function UserManagement({
                   <th>{t('Name')}</th>
                   <th>{t('Email')}</th>
                   <th>{t('Phone')}</th>
+                  <th>{t('Role')}</th>
                   <th>{t('Status')}</th>
                   <th>{t('Added')}</th>
                   <th>{t('Actions')}</th>
@@ -149,6 +167,18 @@ export default function UserManagement({
                     <td>{user.name}</td>
                     <td>{user.email}</td>
                     <td>{user.phone || '—'}</td>
+                    <td>
+                      <select
+                        value={user.role || 'analyst'}
+                        onChange={(event) => onChangeRole(user.id, event.target.value)}
+                      >
+                        {roleOptions.map((option) => (
+                          <option key={option.value} value={option.value}>
+                            {t(option.labelKey)}
+                          </option>
+                        ))}
+                      </select>
+                    </td>
                     <td>
                       <span className={`status-pill ${user.enabled ? 'success' : 'muted'}`}>
                         {user.enabled ? t('Enabled') : t('Disabled')}

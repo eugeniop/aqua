@@ -18,6 +18,11 @@ const userSchema = new mongoose.Schema(
       type: String,
       trim: true
     },
+    role: {
+      type: String,
+      enum: ['superadmin', 'admin', 'field-operator', 'analyst'],
+      default: 'analyst'
+    },
     enabled: {
       type: Boolean,
       default: true

@@ -49,9 +49,14 @@ export const translations = {
     'Create users and enable or disable access for the Aqua app.':
       'Create users and enable or disable access for the Aqua app.',
     'Add user': 'Add user',
+    'Assigned role': 'Assigned role',
     Email: 'Email',
     Phone: 'Phone',
     'Phone (optional)': 'Phone (optional)',
+    Role: 'Role',
+    Admin: 'Admin',
+    'Field operator': 'Field operator',
+    Analyst: 'Analyst',
     'Enabled on create': 'Enabled on create',
     'Create user': 'Create user',
     'Existing users': 'Existing users',
@@ -136,6 +141,7 @@ export const translations = {
     'Create users and enable or disable access for the Aqua app.':
       'Unda watumiaji na kuwezesha au kuzima ufikiaji wa programu ya Aqua.',
     'Add user': 'Ongeza mtumiaji',
+    'Assigned role': 'Jukumu lililopangwa',
     Email: 'Barua pepe',
     Phone: 'Simu',
     'Phone (optional)': 'Simu (hiari)',

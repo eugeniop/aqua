@@ -238,6 +238,16 @@ export default function App() {
     }
   };
 
+  const handleChangeUserRole = async (userId, role) => {
+    setUserError('');
+    try {
+      const updated = await updateUserStatus(userId, { role });
+      setUsers((prev) => prev.map((user) => (user.id === userId ? updated : user)));
+    } catch (err) {
+      setUserError(err.message || t('Unable to update user.'));
+    }
+  };
+
   const toggleSitePanel = () => {
     setShowSitePanel((value) => !value);
   };
@@ -339,6 +349,7 @@ export default function App() {
             error={userError}
             onCreate={handleCreateUser}
             onToggle={handleToggleUser}
+            onChangeRole={handleChangeUserRole}
             currentUserId={currentUserId}
           />
         ) : (
