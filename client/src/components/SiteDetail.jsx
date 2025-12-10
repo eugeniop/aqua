@@ -1285,12 +1285,6 @@ export default function SiteDetail({
           <h1>{site.name}</h1>
           {site.location && <p className="meta">{site.location}</p>}
         </div>
-        <div className="operator-chip">
-          <span>
-            {t('Logged in as {name}', { name: displayUserName })}
-          </span>
-          <span className="operator-role">{t('Role: {role}', { role: userRoleLabel })}</span>
-        </div>
       </header>
 
       <section className="site-actions">
