@@ -143,15 +143,10 @@ export const requireAuth = async (req, res, next) => {
 
     validateClaims(payload);
 
-    const roles = payload[ROLE_CLAIM];
-    const role = Array.isArray(roles) ? roles[0] : roles;
     const email = (payload.email || '').trim().toLowerCase();
 
-    if (!role || !VALID_ROLES.includes(role)) {
-      return res.status(403).json({ message: 'Invalid or missing role' });
-    }
-
     if (!email) {
+      //Should never happen
       return res.status(401).json({ message: 'Email address not available on token' });
     }
 
@@ -177,6 +172,13 @@ export const requireAuth = async (req, res, next) => {
         translations: DISABLED_MESSAGES,
         code: 'disabled'
       });
+    }
+
+    const roles = payload[ROLE_CLAIM];
+    const role = Array.isArray(roles) ? roles[0] : roles;
+
+    if (!role || !VALID_ROLES.includes(role)) {
+      return res.status(403).json({ message: 'Invalid or missing role' });
     }
 
     req.user = {
