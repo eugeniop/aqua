@@ -8,15 +8,11 @@ export const translations = {
     pacificTime: 'Pacific Time (PST/PDT)',
     tanzaniaTime: 'Tanzania (EAT)',
     'Loading authentication…': 'Loading authentication…',
-<<<<<<< HEAD
     'Sign in to continue.': 'Log in to continue.',
-=======
-    'Sign in with your Auth0 account to continue.': 'Sign in with your Auth0 account to continue.',
     'Access restricted': 'Access restricted',
     'View in another language': 'View in another language',
     'Language selection for access notice': 'Language selection for access notice',
     'Return to login': 'Return to login',
->>>>>>> 2f82657c1b6e32c244e8328fc9c51e8aa9e53f45
     'Log out': 'Log out',
     'Unknown user': 'Unknown user',
     'Add bulk measurements': 'Add bulk measurements',
@@ -83,15 +79,11 @@ export const translations = {
     'Capture water production, storage and usage data with confidence.':
       'Kusanya taarifa za uzalishaji, uhifadhi na matumizi ya maji kwa uhakika.',
     'Loading authentication…': 'Inathibitisha utambulisho…',
-<<<<<<< HEAD
     'Sign in to continue.': 'Ingia ili kuendelea.',
-=======
-    'Sign in with your Auth0 account to continue.': 'Ingia na akaunti yako ya Auth0 ili kuendelea.',
     'Access restricted': 'Ufikiaji umewekewa mipaka',
     'View in another language': 'Tazama katika lugha nyingine',
     'Language selection for access notice': 'Uchaguzi wa lugha kwa taarifa ya ufikiaji',
     'Return to login': 'Rudi kwenye ukurasa wa kuingia',
->>>>>>> 2f82657c1b6e32c244e8328fc9c51e8aa9e53f45
     'Log out': 'Toka',
     'Unknown user': 'Mtumiaji hajulikani',
     'Operator name': 'Jina la mtumiaji',
