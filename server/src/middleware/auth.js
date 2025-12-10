@@ -6,8 +6,15 @@ const ISSUER_BASE_URL = (process.env.AUTH0_ISSUER_BASE_URL || '').replace(/\/$/,
 const AUDIENCE = process.env.AUTH0_AUDIENCE || '';
 const ROLE_CLAIM = process.env.AUTH0_ROLE_CLAIM || 'https://aqua.example.com/roles';
 const JWKS_TTL_MS = 1000 * 60 * 15; // 15 minutes
-const REGISTRATION_ERROR_MESSAGE =
-  'You are not registered to use this application. Please contact administrator / Hujasajiliwa kutumia programu hii. Tafadhali wasiliana na msimamizi.';
+const DISABLED_MESSAGES = {
+  en: 'Your access to the app is disabled. Please contact administrator.',
+  sw: 'Ufikiaji wako kwenye programu umelemazwa. Tafadhali wasiliana na msimamizi.'
+};
+
+const PENDING_APPROVAL_MESSAGES = {
+  en: 'Thanks for signing up to Water System Monitoring. An administrator has been notified and will approve access.',
+  sw: 'Asante kwa kujisajili kutumia Mfumo wa Ufuatiliaji wa Maji. Msimamizi amearifiwa na atakuidhinishia ufikiaji.'
+};
 
 let jwksCache = { keys: [], fetchedAt: 0 };
 
@@ -145,14 +152,28 @@ export const requireAuth = async (req, res, next) => {
       return res.status(401).json({ message: 'Email address not available on token' });
     }
 
-    const user = await User.findOne({ email });
+    let user = await User.findOne({ email });
 
     if (!user) {
-      return res.status(403).json({ message: REGISTRATION_ERROR_MESSAGE });
+      user = await User.create({
+        name: (payload.name || payload.nickname || payload.email || '').trim() || 'New user',
+        email,
+        enabled: false
+      });
+
+      return res.status(403).json({
+        message: PENDING_APPROVAL_MESSAGES.en,
+        translations: PENDING_APPROVAL_MESSAGES,
+        code: 'pending-approval'
+      });
     }
 
     if (!user.enabled) {
-      return res.status(403).json({ message: 'Your account is disabled. Please contact an administrator.' });
+      return res.status(403).json({
+        message: DISABLED_MESSAGES.en,
+        translations: DISABLED_MESSAGES,
+        code: 'disabled'
+      });
     }
 
     req.user = {
