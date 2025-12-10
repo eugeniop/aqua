@@ -2,7 +2,16 @@ import { useEffect, useState } from 'react';
 import { useTranslation } from '../i18n/LocalizationProvider.jsx';
 import './SiteList.css';
 
-export default function SiteList({ sites, selectedSiteId, onSelect, onCreate, canCreate = false }) {
+export default function SiteList({
+  sites,
+  selectedSiteId,
+  onSelect,
+  onCreate,
+  canCreate = false,
+  showUserManagement = false,
+  onSelectView,
+  activeView = 'sites'
+}) {
   const [isCreating, setIsCreating] = useState(false);
   const [form, setForm] = useState({ name: '', location: '' });
   const [error, setError] = useState('');
@@ -50,6 +59,24 @@ export default function SiteList({ sites, selectedSiteId, onSelect, onCreate, ca
         {canCreate && (
           <button type="button" onClick={toggleCreate} className="link-btn">
             {isCreating ? t('Cancel') : t('Add site')}
+          </button>
+        )}
+      </div>
+      <div className="panel-actions">
+        <button
+          type="button"
+          className={`panel-tab ${activeView === 'sites' ? 'active' : ''}`}
+          onClick={() => onSelectView?.('sites')}
+        >
+          {t('Sites')}
+        </button>
+        {showUserManagement && (
+          <button
+            type="button"
+            className={`panel-tab ${activeView === 'users' ? 'active' : ''}`}
+            onClick={() => onSelectView?.('users')}
+          >
+            {t('User management')}
           </button>
         )}
       </div>

@@ -34,6 +34,7 @@ export default function App() {
   const [authLoading, setAuthLoading] = useState(true);
   const [authError, setAuthError] = useState('');
   const [showSitePanel, setShowSitePanel] = useState(true);
+  const [activeView, setActiveView] = useState('sites');
   const [users, setUsers] = useState([]);
   const [userError, setUserError] = useState('');
   const [loadingUsers, setLoadingUsers] = useState(false);
@@ -77,6 +78,12 @@ export default function App() {
     }
     loadUsers();
   }, [currentUser]);
+
+  useEffect(() => {
+    if (currentUser?.role !== 'superadmin' && activeView === 'users') {
+      setActiveView('sites');
+    }
+  }, [activeView, currentUser?.role]);
 
   const handleLogin = () => {
     auth0Client.loginWithRedirect().catch((err) => setAuthError(err.message));
@@ -133,6 +140,7 @@ export default function App() {
   };
 
   const handleSelectSite = async (siteId) => {
+    setActiveView('sites');
     setSelectedSiteId(siteId);
     await loadSiteDetail(siteId);
   };
@@ -261,12 +269,20 @@ export default function App() {
           onSelect={handleSelectSite}
           onCreate={handleCreateSite}
           canCreate={canCreateSites}
+          showUserManagement={isSuperAdmin}
+          onSelectView={setActiveView}
+          activeView={activeView}
         />
       )}
-      <main className="content">
+      <main className={`content ${activeView === 'users' ? 'users-active' : ''}`}>
         <div className="content-header">
-          <button type="button" className="toggle-panel" onClick={toggleSitePanel}>
-            {showSitePanel ? t('Hide sites') : t('Show sites')}
+          <button
+            type="button"
+            className="toggle-panel"
+            onClick={toggleSitePanel}
+            aria-label={showSitePanel ? t('Hide sites') : t('Show sites')}
+          >
+            <span className={`chevron ${showSitePanel ? 'left' : 'right'}`} aria-hidden="true" />
           </button>
           <div className="user-session">
             <div className="user-meta">
@@ -295,7 +311,7 @@ export default function App() {
             </label>
           </div>
         </div>
-        {isSuperAdmin && (
+        {isSuperAdmin && activeView === 'users' ? (
           <UserManagement
             users={users}
             loading={loadingUsers}
@@ -304,24 +320,27 @@ export default function App() {
             onToggle={handleToggleUser}
             currentUserId={currentUserId}
           />
-        )}
-        {error && <div className="banner error">{error}</div>}
-        {loadingSites || loadingSite ? (
-          <div className="loading">{t('Loading data…')}</div>
         ) : (
-          <SiteDetail
-            site={activeSite}
-            user={currentUser}
-            canManageFeatures={canManageFeatures}
-            canRecordMeasurements={canRecordMeasurements}
-            onAddWell={handleAddWell}
-            onAddTank={handleAddTank}
-            onAddFlowmeter={handleAddFlowmeter}
-            onRecordTank={handleRecordTank}
-            onRecordFlowmeter={handleRecordFlowmeter}
-            onRecordWell={handleRecordWell}
-            onRecordWellBulk={handleRecordWellBulk}
-          />
+          <>
+            {error && <div className="banner error">{error}</div>}
+            {loadingSites || loadingSite ? (
+              <div className="loading">{t('Loading data…')}</div>
+            ) : (
+              <SiteDetail
+                site={activeSite}
+                user={currentUser}
+                canManageFeatures={canManageFeatures}
+                canRecordMeasurements={canRecordMeasurements}
+                onAddWell={handleAddWell}
+                onAddTank={handleAddTank}
+                onAddFlowmeter={handleAddFlowmeter}
+                onRecordTank={handleRecordTank}
+                onRecordFlowmeter={handleRecordFlowmeter}
+                onRecordWell={handleRecordWell}
+                onRecordWellBulk={handleRecordWellBulk}
+              />
+            )}
+          </>
         )}
       </main>
     </div>
