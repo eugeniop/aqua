@@ -72,8 +72,8 @@ export const updateUserStatus = async (req, res) => {
       return res.status(404).json({ message: 'User not found' });
     }
 
-    if (req.user?.id && req.user.id === userId && enabled === false) {
-      return res.status(400).json({ message: 'You cannot disable your own account' });
+    if (req.user?.id && req.user.id === userId && req.user.role === 'superadmin') {
+      return res.status(400).json({ message: 'Superadmins cannot modify their own account' });
     }
 
     if (enabled != null) {
