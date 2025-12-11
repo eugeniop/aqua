@@ -53,6 +53,11 @@ export default function UserManagement({
     }
   };
 
+  const getRoleLabel = (roleValue) => {
+    const option = roleOptions.find((item) => item.value === roleValue);
+    return option ? t(option.labelKey) : roleValue;
+  };
+
   const renderStatusToggle = (user) => {
     const targetState = !user.enabled;
     const label = user.enabled ? t('Disable') : t('Enable');
@@ -168,16 +173,20 @@ export default function UserManagement({
                     <td>{user.email}</td>
                     <td>{user.phone || '—'}</td>
                     <td>
-                      <select
-                        value={user.role || 'analyst'}
-                        onChange={(event) => onChangeRole(user.id, event.target.value)}
-                      >
-                        {roleOptions.map((option) => (
-                          <option key={option.value} value={option.value}>
-                            {t(option.labelKey)}
-                          </option>
-                        ))}
-                      </select>
+                      {user.id === currentUserId && user.role === 'superadmin' ? (
+                        <span>{getRoleLabel(user.role)}</span>
+                      ) : (
+                        <select
+                          value={user.role || 'analyst'}
+                          onChange={(event) => onChangeRole(user.id, event.target.value)}
+                        >
+                          {roleOptions.map((option) => (
+                            <option key={option.value} value={option.value}>
+                              {t(option.labelKey)}
+                            </option>
+                          ))}
+                        </select>
+                      )}
                     </td>
                     <td>
                       <span className={`status-pill ${user.enabled ? 'success' : 'muted'}`}>
