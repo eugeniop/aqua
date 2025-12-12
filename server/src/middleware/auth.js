@@ -7,7 +7,7 @@ dotenv.config();
 const VALID_ROLES = ['superadmin', 'admin', 'field-operator', 'analyst'];
 const ISSUER_BASE_URL = (process.env.AUTH0_ISSUER_BASE_URL || '').replace(/\/$/, '');
 const AUDIENCE = process.env.AUTH0_AUDIENCE || '';
-const ROLE_CLAIM = process.env.AUTH0_ROLE_CLAIM || 'https://aqua.example.com/roles';
+const ROLE_CLAIM = process.env.AUTH0_ROLE_CLAIM || 'https://aqua-water-system/roles';
 const JWKS_TTL_MS = 1000 * 60 * 15; // 15 minutes
 const DISABLED_MESSAGES = {
   en: 'Your access to the app is disabled. Please contact administrator.',

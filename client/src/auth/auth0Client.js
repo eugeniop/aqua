@@ -1,7 +1,7 @@
 const AUTH0_DOMAIN = import.meta.env.VITE_AUTH0_DOMAIN;
 const AUTH0_CLIENT_ID = import.meta.env.VITE_AUTH0_CLIENT_ID;
 const AUTH0_AUDIENCE = import.meta.env.VITE_AUTH0_AUDIENCE;
-const AUTH0_ROLE_CLAIM = import.meta.env.VITE_AUTH0_ROLE_CLAIM || 'https://aqua.example.com/roles';
+const AUTH0_ROLE_CLAIM = import.meta.env.VITE_AUTH0_ROLE_CLAIM || 'https://aqua-water-system/roles';
 const REDIRECT_URI = window.location.origin;
 
 const TOKEN_KEY = 'auth0_access_token';
