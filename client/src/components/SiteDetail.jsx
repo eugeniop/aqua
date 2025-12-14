@@ -15,33 +15,103 @@ import {
 } from '../api.js';
 import './SiteDetail.css';
 
-const defaultTimestamp = () => new Date().toISOString().slice(0, 16);
-const defaultDateOnly = () => new Date().toISOString().slice(0, 10);
-const BULK_ROW_COUNT = 20;
-const defaultPumpState = 'off';
-const emptyBulkRow = (pumpState = defaultPumpState) => ({
-  date: defaultDateOnly(),
-  time: '',
-  depthToWater: '',
-  pumpState,
-  comment: ''
-});
-const createBulkRows = () => Array.from({ length: BULK_ROW_COUNT }, () => emptyBulkRow());
+const createDateFormatter = (timeZone) =>
+  new Intl.DateTimeFormat('en-CA', {
+    timeZone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit'
+  });
 
-const parseBulkRowDateTime = (row) => {
-  if (!row.date || !(row.time || '').trim()) {
-    return null;
+const createDateTimeFormatter = (timeZone) =>
+  new Intl.DateTimeFormat('en-CA', {
+    timeZone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false
+  });
+
+const createOffsetFormatter = (timeZone) =>
+  new Intl.DateTimeFormat('en-US', {
+    timeZone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false
+  });
+
+const partsToObject = (parts) =>
+  parts.reduce((acc, part) => {
+    if (part.type !== 'literal') {
+      acc[part.type] = part.value;
+    }
+    return acc;
+  }, {});
+
+const formatDateInput = (value, timeZone) => {
+  if (!value) {
+    return '';
   }
-
-  const parsed = new Date(`${row.date}T${row.time}`);
-  if (Number.isNaN(parsed.getTime())) {
-    return null;
+  const date = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return '';
   }
-
-  return parsed;
+  const parts = partsToObject(createDateFormatter(timeZone).formatToParts(date));
+  const { year, month, day } = parts;
+  return `${year}-${month}-${day}`;
 };
 
-const applyBulkChronologyErrors = (rows, errors) => {
+const formatDateTimeInput = (value, timeZone) => {
+  if (!value) {
+    return '';
+  }
+  const date = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return '';
+  }
+  const parts = partsToObject(createDateTimeFormatter(timeZone).formatToParts(date));
+  const { year, month, day, hour, minute } = parts;
+  return `${year}-${month}-${day}T${hour}:${minute}`;
+};
+
+const getTimeZoneOffsetMinutes = (date, timeZone) => {
+  const parts = partsToObject(createOffsetFormatter(timeZone).formatToParts(date));
+  const { year, month, day, hour, minute, second } = parts;
+  const asUTC = Date.UTC(year, Number(month) - 1, day, hour, minute, second);
+  return (asUTC - date.getTime()) / 60000;
+};
+
+const parseDateTimeInTimeZone = (value, timeZone) => {
+  if (!value) {
+    return null;
+  }
+  const [datePart, timePart] = value.split('T');
+  if (!datePart || !timePart) {
+    return null;
+  }
+  const [year, month, day] = datePart.split('-').map(Number);
+  const [hour, minute] = timePart.split(':').map(Number);
+  if ([year, month, day, hour, minute].some((number) => Number.isNaN(number))) {
+    return null;
+  }
+  const utcDate = new Date(Date.UTC(year, month - 1, day, hour, minute));
+  if (Number.isNaN(utcDate.getTime())) {
+    return null;
+  }
+  const offset = getTimeZoneOffsetMinutes(utcDate, timeZone);
+  return new Date(utcDate.getTime() - offset * 60000);
+};
+
+const BULK_ROW_COUNT = 20;
+const defaultPumpState = 'off';
+
+const applyBulkChronologyErrors = (rows, errors, parseDate) => {
   const nextErrors = Object.entries(errors).reduce((acc, [rowIndex, rowErrors]) => {
     const { order, ...rest } = rowErrors;
     if (Object.keys(rest).length > 0) {
@@ -52,7 +122,7 @@ const applyBulkChronologyErrors = (rows, errors) => {
 
   let lastRecordedAt = null;
   rows.forEach((row, index) => {
-    const currentRecordedAt = parseBulkRowDateTime(row);
+    const currentRecordedAt = parseDate(row);
     if (currentRecordedAt && lastRecordedAt && currentRecordedAt.getTime() < lastRecordedAt.getTime()) {
       nextErrors[index] = { ...(nextErrors[index] || {}), order: true };
       return;
@@ -102,7 +172,31 @@ export default function SiteDetail({
   onRecordWell,
   onRecordWellBulk
 }) {
-  const { t, formatDateTime } = useTranslation();
+  const { t, formatDateTime, timeZone } = useTranslation();
+  const defaultTimestamp = () => formatDateTimeInput(new Date(), timeZone);
+  const defaultDateOnly = () => formatDateInput(new Date(), timeZone);
+  const emptyBulkRow = (pumpState = defaultPumpState) => ({
+    date: defaultDateOnly(),
+    time: '',
+    depthToWater: '',
+    pumpState,
+    comment: ''
+  });
+  const createBulkRows = () => Array.from({ length: BULK_ROW_COUNT }, () => emptyBulkRow());
+  const parseBulkRowDateTime = (row) =>
+    row.date && (row.time || '').trim()
+      ? parseDateTimeInTimeZone(`${row.date}T${row.time}`, timeZone)
+      : null;
+  const toRecordedAtIso = (value) => {
+    if (!value) {
+      return undefined;
+    }
+    const parsed = parseDateTimeInTimeZone(value, timeZone);
+    if (!parsed || Number.isNaN(parsed.getTime())) {
+      return undefined;
+    }
+    return parsed.toISOString();
+  };
   const typeLabels = useMemo(
     () => ({
       well: t('Well'),
@@ -390,14 +484,14 @@ export default function SiteDetail({
           params.operator = historyFilters.operator;
         }
         if (historyFilters.from) {
-          const fromDate = new Date(historyFilters.from);
-          if (!Number.isNaN(fromDate.getTime())) {
+          const fromDate = parseDateTimeInTimeZone(historyFilters.from, timeZone);
+          if (fromDate && !Number.isNaN(fromDate.getTime())) {
             params.from = fromDate.toISOString();
           }
         }
         if (historyFilters.to) {
-          const toDate = new Date(historyFilters.to);
-          if (!Number.isNaN(toDate.getTime())) {
+          const toDate = parseDateTimeInTimeZone(historyFilters.to, timeZone);
+          if (toDate && !Number.isNaN(toDate.getTime())) {
             params.to = toDate.toISOString();
           }
         }
@@ -435,7 +529,7 @@ export default function SiteDetail({
     return () => {
       cancelled = true;
     };
-  }, [historyModal, historyPage, historyReloadToken, historyFilters]);
+  }, [historyModal, historyPage, historyReloadToken, historyFilters, timeZone]);
 
   const toggleType = (type) => {
     setVisibleTypes((prev) => ({ ...prev, [type]: !prev[type] }));
@@ -560,9 +654,9 @@ export default function SiteDetail({
 
     const { from, to, operator } = historyFilterForm;
     if (from && to) {
-      const fromDate = new Date(from);
-      const toDate = new Date(to);
-      if (fromDate > toDate) {
+      const fromDate = parseDateTimeInTimeZone(from, timeZone);
+      const toDate = parseDateTimeInTimeZone(to, timeZone);
+      if (fromDate && toDate && fromDate > toDate) {
         setHistoryControlsError(t('“From” date must be before “to” date.'));
         return;
       }
@@ -607,14 +701,14 @@ export default function SiteDetail({
         params.operator = historyFilters.operator;
       }
       if (historyFilters.from) {
-        const fromDate = new Date(historyFilters.from);
-        if (!Number.isNaN(fromDate.getTime())) {
+        const fromDate = parseDateTimeInTimeZone(historyFilters.from, timeZone);
+        if (fromDate && !Number.isNaN(fromDate.getTime())) {
           params.from = fromDate.toISOString();
         }
       }
       if (historyFilters.to) {
-        const toDate = new Date(historyFilters.to);
-        if (!Number.isNaN(toDate.getTime())) {
+        const toDate = parseDateTimeInTimeZone(historyFilters.to, timeZone);
+        if (toDate && !Number.isNaN(toDate.getTime())) {
           params.to = toDate.toISOString();
         }
       }
@@ -682,9 +776,9 @@ export default function SiteDetail({
     const toValue = overrideTo !== undefined ? overrideTo : chartForm.to;
 
     if (fromValue && toValue) {
-      const fromDate = new Date(fromValue);
-      const toDate = new Date(toValue);
-      if (fromDate > toDate) {
+      const fromDate = parseDateTimeInTimeZone(fromValue, timeZone);
+      const toDate = parseDateTimeInTimeZone(toValue, timeZone);
+      if (fromDate && toDate && fromDate > toDate) {
         setChartState((prev) => ({ ...prev, loading: false, error: t('“From” date must be before “to” date.') }));
         return;
       }
@@ -700,14 +794,14 @@ export default function SiteDetail({
 
       const params = { page: 1, limit: 500, order: 'asc' };
       if (fromValue) {
-        const fromDate = new Date(fromValue);
-        if (!Number.isNaN(fromDate.getTime())) {
+        const fromDate = parseDateTimeInTimeZone(fromValue, timeZone);
+        if (fromDate && !Number.isNaN(fromDate.getTime())) {
           params.from = fromDate.toISOString();
         }
       }
       if (toValue) {
-        const toDate = new Date(toValue);
-        if (!Number.isNaN(toDate.getTime())) {
+        const toDate = parseDateTimeInTimeZone(toValue, timeZone);
+        if (toDate && !Number.isNaN(toDate.getTime())) {
           params.to = toDate.toISOString();
         }
       }
@@ -928,7 +1022,7 @@ export default function SiteDetail({
           nextErrors = clearBulkErrorField(nextErrors, index, 'order');
         }
 
-        return applyBulkChronologyErrors(nextRows, nextErrors);
+        return applyBulkChronologyErrors(nextRows, nextErrors, parseBulkRowDateTime);
       });
 
       return nextRows;
@@ -953,7 +1047,7 @@ export default function SiteDetail({
         let nextErrors = clearBulkErrorField(prevErrors, index + 1, 'time');
         nextErrors = clearBulkErrorField(nextErrors, index + 1, 'order');
 
-        return applyBulkChronologyErrors(nextRows, nextErrors);
+        return applyBulkChronologyErrors(nextRows, nextErrors, parseBulkRowDateTime);
       });
 
       return nextRows;
@@ -1008,8 +1102,8 @@ export default function SiteDetail({
 
       let recordedAt;
       if (!rowErrors.date && !rowErrors.time) {
-        const parsed = new Date(`${row.date}T${row.time}`);
-        if (Number.isNaN(parsed.getTime())) {
+        const parsed = parseBulkRowDateTime(row);
+        if (!parsed || Number.isNaN(parsed.getTime())) {
           rowErrors.time = true;
         } else {
           if (lastRecordedAt && parsed.getTime() < lastRecordedAt.getTime()) {
@@ -1027,7 +1121,7 @@ export default function SiteDetail({
         return;
       }
 
-      lastRecordedAt = new Date(recordedAt);
+      lastRecordedAt = recordedAt ? new Date(recordedAt) : null;
       const pumpState = row.pumpState === 'on' ? 'on' : row.pumpState === 'off' ? 'off' : lastPumpState;
       lastPumpState = pumpState;
 
@@ -1212,7 +1306,7 @@ export default function SiteDetail({
           depthToWater: Number(recordForm.depthToWater),
           pumpState: recordForm.pumpState === 'on' ? 'on' : 'off',
           comment: recordForm.comment?.trim() || undefined,
-          recordedAt: recordForm.recordedAt ? new Date(recordForm.recordedAt).toISOString() : undefined,
+          recordedAt: toRecordedAtIso(recordForm.recordedAt),
           operator: userName
         });
         setRecordModal(null);
@@ -1237,7 +1331,7 @@ export default function SiteDetail({
         await onRecordTank(feature.id, {
           level: Number(recordForm.level),
           comment: recordForm.comment?.trim() || undefined,
-          recordedAt: recordForm.recordedAt ? new Date(recordForm.recordedAt).toISOString() : undefined,
+          recordedAt: toRecordedAtIso(recordForm.recordedAt),
           operator: userName
         });
         setRecordModal(null);
@@ -1263,7 +1357,7 @@ export default function SiteDetail({
           instantaneousFlow: Number(recordForm.instantaneousFlow),
           totalizedVolume: Number(recordForm.totalizedVolume),
           comment: recordForm.comment?.trim() || undefined,
-          recordedAt: recordForm.recordedAt ? new Date(recordForm.recordedAt).toISOString() : undefined,
+          recordedAt: toRecordedAtIso(recordForm.recordedAt),
           operator: userName
         });
         setRecordModal(null);
