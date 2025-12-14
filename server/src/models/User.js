@@ -1,5 +1,7 @@
 import mongoose from 'mongoose';
 
+const VALID_ROLES = ['superadmin', 'admin', 'field-operator', 'analyst'];
+
 const userSchema = new mongoose.Schema(
   {
     name: {
@@ -20,8 +22,8 @@ const userSchema = new mongoose.Schema(
     },
     role: {
       type: String,
-      enum: ['superadmin', 'admin', 'field-operator', 'analyst'],
-      default: 'analyst'
+      enum: [...VALID_ROLES, ''],
+      default: ''
     },
     enabled: {
       type: Boolean,
@@ -32,5 +34,7 @@ const userSchema = new mongoose.Schema(
     timestamps: true
   }
 );
+
+export { VALID_ROLES };
 
 export default mongoose.model('User', userSchema);

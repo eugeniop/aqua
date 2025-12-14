@@ -20,7 +20,8 @@ import {
   setAuthContext,
   getUsers,
   createUser,
-  updateUserStatus
+  updateUserStatus,
+  getCurrentUser
 } from './api.js';
 import './App.css';
 
@@ -44,16 +45,29 @@ export default function App() {
 
   useEffect(() => {
     const initializeAuth = async () => {
+      setAuthError('');
       try {
         await auth0Client.handleRedirectCallback();
         if (auth0Client.isAuthenticated()) {
-          const profile = auth0Client.getUserProfile();
-          setAuthContext({
-            name: profile.name,
-            role: profile.role,
-            getToken: () => Promise.resolve(auth0Client.getAccessToken())
-          });
-          setCurrentUser(profile);
+          const tokenProvider = () => Promise.resolve(auth0Client.getAccessToken());
+          setAuthContext({ name: '', role: '', getToken: tokenProvider });
+          try {
+            const userProfile = await getCurrentUser();
+            setAuthContext({
+              name: userProfile.name,
+              role: userProfile.role,
+              getToken: tokenProvider
+            });
+            setCurrentUser(userProfile);
+            setAccessNotice(null);
+          } catch (err) {
+            if (err.status === 403 && err.translations) {
+              setAccessNotice({ message: err.message, translations: err.translations });
+            } else {
+              setAuthError(err.message || t('Unable to complete authentication.'));
+            }
+            setCurrentUser(null);
+          }
         } else {
           setCurrentUser(null);
         }
@@ -256,6 +270,16 @@ export default function App() {
     return <div className="loading">{t('Loading authentication…')}</div>;
   }
 
+  if (accessNotice) {
+    return (
+      <AccessNotice
+        message={accessNotice.message}
+        translations={accessNotice.translations}
+        onLogout={handleLogout}
+      />
+    );
+  }
+
   if (!currentUser) {
     return (
       <div className="login-container">
@@ -269,16 +293,6 @@ export default function App() {
           </button>
         </div>
       </div>
-    );
-  }
-
-  if (accessNotice) {
-    return (
-      <AccessNotice
-        message={accessNotice.message}
-        translations={accessNotice.translations}
-        onLogout={handleLogout}
-      />
     );
   }
 

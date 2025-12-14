@@ -27,6 +27,10 @@ app.get('/api/health', (_req, res) => {
   res.json({ status: 'ok' });
 });
 
+app.get('/api/me', requireAuth, (req, res) => {
+  res.json(req.user);
+});
+
 app.use('/api/sites', requireAuth, siteRoutes);
 app.use('/api/users', requireAuth, ensureRole('superadmin'), userRoutes);
 app.use('/api', requireAuth, readingRoutes);
