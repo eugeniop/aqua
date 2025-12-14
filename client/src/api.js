@@ -151,6 +151,8 @@ export const deleteWellMeasurement = (wellId, measurementId) =>
     method: 'DELETE'
   });
 
+export const getCurrentUser = () => request('/me');
+
 export const getUsers = () => request('/users');
 
 export const createUser = (payload) =>

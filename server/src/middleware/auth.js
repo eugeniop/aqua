@@ -1,22 +1,26 @@
 import crypto from 'crypto';
-import User from '../models/User.js';
+import User, { VALID_ROLES } from '../models/User.js';
+import { notifySuperadminsOfSignup } from '../services/notificationService.js';
 
 import dotenv from 'dotenv';
 dotenv.config();
 
-const VALID_ROLES = ['superadmin', 'admin', 'field-operator', 'analyst'];
 const ISSUER_BASE_URL = (process.env.AUTH0_ISSUER_BASE_URL || '').replace(/\/$/, '');
 const AUDIENCE = process.env.AUTH0_AUDIENCE || '';
-const ROLE_CLAIM = process.env.AUTH0_ROLE_CLAIM || 'https://aqua-water-system/roles';
 const JWKS_TTL_MS = 1000 * 60 * 15; // 15 minutes
 const DISABLED_MESSAGES = {
-  en: 'Your access to the app is disabled. Please contact administrator.',
-  sw: 'Ufikiaji wako kwenye programu umelemazwa. Tafadhali wasiliana na msimamizi.'
+  en: 'Your user is not yet enabled. Please contact the administrator',
+  sw: 'Akaunti yako haijawashwa bado. Tafadhali wasiliana na msimamizi.'
 };
 
 const PENDING_APPROVAL_MESSAGES = {
   en: 'Thanks for signing up to Water System Monitoring. An administrator has been notified and will approve access.',
   sw: 'Asante kwa kujisajili kutumia Mfumo wa Ufuatiliaji wa Maji. Msimamizi amearifiwa na atakuidhinishia ufikiaji.'
+};
+
+const ROLE_NOT_CONFIGURED_MESSAGES = {
+  en: 'User role is not configured. Please contact the administrator.',
+  sw: 'Jukumu la mtumiaji halijasanidiwa. Tafadhali wasiliana na msimamizi.'
 };
 
 let jwksCache = { keys: [], fetchedAt: 0 };
@@ -156,8 +160,11 @@ export const requireAuth = async (req, res, next) => {
       user = await User.create({
         name: (payload.name || payload.nickname || payload.email || '').trim() || 'New user',
         email,
-        enabled: false
+        enabled: false,
+        role: ''
       });
+
+      await notifySuperadminsOfSignup({ email, name: user.name });
 
       return res.status(403).json({
         message: PENDING_APPROVAL_MESSAGES.en,
@@ -174,18 +181,22 @@ export const requireAuth = async (req, res, next) => {
       });
     }
 
-    const roles = payload[ROLE_CLAIM];
-    const role = Array.isArray(roles) ? roles[0] : roles;
+    const role = (user.role || '').trim();
 
-    if (!role || !VALID_ROLES.includes(role)) {
-      return res.status(403).json({ message: 'Invalid or missing role' });
+    if (!VALID_ROLES.includes(role)) {
+      return res.status(403).json({
+        message: ROLE_NOT_CONFIGURED_MESSAGES.en,
+        translations: ROLE_NOT_CONFIGURED_MESSAGES,
+        code: 'role-not-configured'
+      });
     }
 
     req.user = {
       id: user._id.toString(),
       role,
       email,
-      name: user.name?.trim() || payload.name || payload.nickname || payload.email || ''
+      name: user.name?.trim() || payload.name || payload.nickname || payload.email || '',
+      enabled: user.enabled
     };
     next();
   } catch (error) {

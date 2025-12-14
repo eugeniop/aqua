@@ -101,8 +101,12 @@ Auth0 protects both the API and client:
 - The SPA performs a PKCE flow against your Auth0 tenant and requests an access token for the API
   audience defined in `VITE_AUTH0_AUDIENCE`.
 - The API validates bearer tokens against the issuer in `AUTH0_ISSUER_BASE_URL` using the
-  tenant JWKS endpoint and enforces roles from the configured claim (`AUTH0_ROLE_CLAIM`).
-- Roles must resolve to one of `admin`, `field-operator` or `analyst` to gain access.
+  tenant JWKS endpoint, looks up the user by email in MongoDB and enforces the role stored on the
+  user record.
+- New signups are created in the database with `enabled: false` and no role. Superadmins receive a
+  mocked email notification prompting them to approve the account via the User management section
+  (set `APP_BASE_URL` to control the link in this message). Enabled users must have a database role
+  of `admin`, `field-operator` or `analyst` to gain access.
 
 ## Production build
 

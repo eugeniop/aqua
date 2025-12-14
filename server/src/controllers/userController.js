@@ -1,17 +1,17 @@
-import User from '../models/User.js';
+import User, { VALID_ROLES } from '../models/User.js';
 
 const formatUser = (user) => ({
   id: user._id.toString(),
   name: user.name,
   email: user.email,
   phone: user.phone || '',
-  role: user.role || 'analyst',
+  role: user.role || '',
   enabled: user.enabled,
   createdAt: user.createdAt
 });
 
 const isValidEmail = (email) => /.+@.+\..+/.test(email);
-const allowedRoles = ['superadmin', 'admin', 'field-operator', 'analyst'];
+const allowedRoles = VALID_ROLES;
 
 export const listUsers = async (_req, res) => {
   try {
