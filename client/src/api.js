@@ -168,3 +168,23 @@ export const updateUserStatus = (userId, payload) =>
     headers: jsonHeaders,
     body: JSON.stringify(payload)
   });
+
+export const sendUserInvitation = async (user) => {
+  const appLink =
+    import.meta.env.VITE_APP_URL ||
+    (typeof window !== 'undefined' ? window.location.origin : 'http://localhost:5173');
+
+  const subject = 'Invitation to join the Water Monitoring System';
+  const body =
+    'You have been invited to join the Water Monitoring System application. Click [here](' +
+    `${appLink}` +
+    ') to access.\n\nThanks\nAdministrator';
+
+  console.info('Mock invitation email', {
+    to: user.email,
+    subject,
+    body
+  });
+
+  return Promise.resolve({ subject, body });
+};

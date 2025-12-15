@@ -21,7 +21,8 @@ import {
   getUsers,
   createUser,
   updateUserStatus,
-  getCurrentUser
+  getCurrentUser,
+  sendUserInvitation
 } from './api.js';
 import './App.css';
 
@@ -40,6 +41,7 @@ export default function App() {
   const [users, setUsers] = useState([]);
   const [userError, setUserError] = useState('');
   const [loadingUsers, setLoadingUsers] = useState(false);
+  const [userNotice, setUserNotice] = useState('');
   const [accessNotice, setAccessNotice] = useState(null);
   const { t, language, setLanguage, timeZone, setTimeZone } = useTranslation();
 
@@ -221,6 +223,7 @@ export default function App() {
   const loadUsers = async () => {
     setLoadingUsers(true);
     setUserError('');
+    setUserNotice('');
     try {
       const result = await getUsers();
       setUsers(result);
@@ -259,6 +262,17 @@ export default function App() {
       setUsers((prev) => prev.map((user) => (user.id === userId ? updated : user)));
     } catch (err) {
       setUserError(err.message || t('Unable to update user.'));
+    }
+  };
+
+  const handleInviteUser = async (user) => {
+    setUserError('');
+    setUserNotice('');
+    try {
+      await sendUserInvitation(user);
+      setUserNotice(t('Invitation sent to {email}', { email: user.email }));
+    } catch (err) {
+      setUserError(err.message || t('Unable to send invitation.'));
     }
   };
 
@@ -364,6 +378,8 @@ export default function App() {
             onCreate={handleCreateUser}
             onToggle={handleToggleUser}
             onChangeRole={handleChangeUserRole}
+            onInvite={handleInviteUser}
+            notice={userNotice}
             currentUserId={currentUserId}
           />
         ) : (

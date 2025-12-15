@@ -140,6 +140,11 @@ button.secondary:hover {
   color: #991b1b;
 }
 
+.banner.success {
+  background: #ecfdf3;
+  color: #166534;
+}
+
 .loading {
   flex: 1;
   display: grid;

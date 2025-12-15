@@ -17,6 +17,8 @@ export default function UserManagement({
   onCreate,
   onToggle,
   onChangeRole,
+  onInvite,
+  notice = '',
   currentUserId
 }) {
   const { t, formatDateTime } = useTranslation();
@@ -75,6 +77,21 @@ export default function UserManagement({
     );
   };
 
+  const renderActions = (user) => {
+    const showInvite = typeof onInvite === 'function' && user.id !== currentUserId;
+
+    return (
+      <div className="action-buttons">
+        {showInvite && (
+          <button type="button" className="link" onClick={() => onInvite(user)}>
+            {t('Invite')}
+          </button>
+        )}
+        {renderStatusToggle(user)}
+      </div>
+    );
+  };
+
   return (
     <section className="user-management">
       <div className="header-row">
@@ -86,6 +103,7 @@ export default function UserManagement({
       </div>
 
       {error && <div className="banner error">{error}</div>}
+      {notice && <div className="banner success">{notice}</div>}
 
       <div className="grid">
         <form className="card" onSubmit={handleSubmit}>
@@ -194,7 +212,7 @@ export default function UserManagement({
                       </span>
                     </td>
                     <td>{formatDateTime(user.createdAt)}</td>
-                    <td>{renderStatusToggle(user)}</td>
+                    <td>{renderActions(user)}</td>
                   </tr>
                 ))}
               </tbody>

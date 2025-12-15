@@ -149,6 +149,13 @@
   cursor: not-allowed;
 }
 
+.action-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  align-items: center;
+}
+
 .loading.muted {
   color: #475569;
 }
