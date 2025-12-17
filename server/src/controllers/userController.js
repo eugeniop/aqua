@@ -1,10 +1,11 @@
-import User, { VALID_ROLES } from '../models/User.js';
+import User, { SUPPORTED_LANGUAGES, VALID_ROLES } from '../models/User.js';
 
 const formatUser = (user) => ({
   id: user._id.toString(),
   name: user.name,
   email: user.email,
   phone: user.phone || '',
+  preferredLanguage: user.preferredLanguage || 'en',
   role: user.role || '',
   enabled: user.enabled,
   createdAt: user.createdAt
@@ -12,6 +13,7 @@ const formatUser = (user) => ({
 
 const isValidEmail = (email) => /.+@.+\..+/.test(email);
 const allowedRoles = VALID_ROLES;
+const isValidLanguage = (value) => SUPPORTED_LANGUAGES.includes((value || '').toLowerCase());
 
 export const listUsers = async (_req, res) => {
   try {
@@ -28,6 +30,9 @@ export const createUser = async (req, res) => {
     const email = (req.body.email || '').trim().toLowerCase();
     const phone = (req.body.phone || '').trim();
     const role = (req.body.role || 'analyst').trim();
+    const preferredLanguage = isValidLanguage(req.body.preferredLanguage)
+      ? req.body.preferredLanguage.toLowerCase()
+      : 'en';
     const enabled = req.body.enabled != null ? Boolean(req.body.enabled) : true;
 
     if (!name) {
@@ -47,7 +52,14 @@ export const createUser = async (req, res) => {
       return res.status(409).json({ message: 'A user with that email already exists' });
     }
 
-    const user = await User.create({ name, email, phone: phone || undefined, role, enabled });
+    const user = await User.create({
+      name,
+      email,
+      phone: phone || undefined,
+      role,
+      enabled,
+      preferredLanguage
+    });
     res.status(201).json(formatUser(user));
   } catch (error) {
     res.status(500).json({ message: 'Unable to create user', error: error.message });
