@@ -95,6 +95,7 @@ button.secondary:hover {
   border-radius: 12px;
   box-shadow: 0 10px 25px rgba(15, 23, 42, 0.08);
   border: 1px solid #e2e8f0;
+  flex-wrap: wrap;
 }
 
 .settings-panel label {
@@ -112,6 +113,25 @@ button.secondary:hover {
   border: 1px solid #cbd5e1;
   background: #f8fafc;
   font-size: 0.95rem;
+}
+
+.settings-panel .timezone-select {
+  min-width: 220px;
+}
+
+.settings-panel .timezone-select input {
+  padding: 0.45rem 0.55rem;
+  border-radius: 8px;
+  border: 1px solid #cbd5e1;
+  background: #f8fafc;
+  font-size: 0.95rem;
+}
+
+.settings-error {
+  color: #991b1b;
+  font-size: 0.9rem;
+  font-weight: 600;
+  flex-basis: 100%;
 }
 
 .settings-title {

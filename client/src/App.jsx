@@ -3,6 +3,7 @@ import { auth0Client } from './auth/auth0Client.js';
 import SiteList from './components/SiteList.jsx';
 import SiteDetail from './components/SiteDetail.jsx';
 import UserManagement from './components/UserManagement.jsx';
+import TimeZoneSelect from './components/TimeZoneSelect.jsx';
 import { useTranslation } from './i18n/LocalizationProvider.jsx';
 import './components/LoginForm.css';
 import AccessNotice from './components/AccessNotice.jsx';
@@ -22,7 +23,8 @@ import {
   createUser,
   updateUserStatus,
   getCurrentUser,
-  sendUserInvitation
+  sendUserInvitation,
+  updateCurrentUser
 } from './api.js';
 import './App.css';
 
@@ -43,6 +45,7 @@ export default function App() {
   const [loadingUsers, setLoadingUsers] = useState(false);
   const [userNotice, setUserNotice] = useState('');
   const [accessNotice, setAccessNotice] = useState(null);
+  const [settingsError, setSettingsError] = useState('');
   const { t, language, setLanguage, timeZone, setTimeZone } = useTranslation();
 
   useEffect(() => {
@@ -103,13 +106,81 @@ export default function App() {
     }
   }, [activeView, currentUser?.role]);
 
+  useEffect(() => {
+    if (!currentUser) {
+      return;
+    }
+
+    if (currentUser.preferredLanguage && currentUser.preferredLanguage !== language) {
+      setLanguage(currentUser.preferredLanguage);
+    }
+
+    if (currentUser.preferredTimeZone && currentUser.preferredTimeZone !== timeZone) {
+      setTimeZone(currentUser.preferredTimeZone);
+    }
+  }, [currentUser, language, setLanguage, setTimeZone, timeZone]);
+
   const handleLogin = () => {
     auth0Client.loginWithRedirect().catch((err) => setAuthError(err.message));
+  };
+
+  const applyUserUpdate = (updatedUser) => {
+    setUsers((prev) => {
+      if (!prev.length) {
+        return prev;
+      }
+
+      const exists = prev.some((user) => user.id === updatedUser.id);
+      return exists ? prev.map((user) => (user.id === updatedUser.id ? updatedUser : user)) : prev;
+    });
+
+    setCurrentUser((prev) => (prev?.id === updatedUser.id ? { ...prev, ...updatedUser } : prev));
   };
 
   const handleLogout = () => {
     setAccessNotice(null);
     auth0Client.logout();
+  };
+
+  const persistCurrentUserPreferences = async (updates, rollback = {}) => {
+    if (!currentUser) {
+      return;
+    }
+
+    setSettingsError('');
+    try {
+      const updated = await updateCurrentUser(updates);
+      applyUserUpdate(updated);
+    } catch (err) {
+      setSettingsError(err.message || t('Unable to update preferences.'));
+
+      if (rollback.preferredLanguage) {
+        setLanguage(rollback.preferredLanguage);
+      }
+
+      if (rollback.preferredTimeZone) {
+        setTimeZone(rollback.preferredTimeZone);
+      }
+    }
+  };
+
+  const handleLanguagePreferenceChange = (value) => {
+    const previousLanguage = currentUser?.preferredLanguage || language;
+    setLanguage(value);
+    if (currentUser) {
+      persistCurrentUserPreferences({ preferredLanguage: value }, { preferredLanguage: previousLanguage });
+    }
+  };
+
+  const handleTimeZonePreferenceChange = (value) => {
+    const previousTimeZone = currentUser?.preferredTimeZone || timeZone;
+    setTimeZone(value);
+    if (currentUser) {
+      persistCurrentUserPreferences(
+        { preferredTimeZone: value },
+        { preferredTimeZone: previousTimeZone }
+      );
+    }
   };
 
   const loadSites = async () => {
@@ -249,7 +320,7 @@ export default function App() {
     setUserError('');
     try {
       const updated = await updateUserStatus(userId, { enabled });
-      setUsers((prev) => prev.map((user) => (user.id === userId ? updated : user)));
+      applyUserUpdate(updated);
     } catch (err) {
       setUserError(err.message || t('Unable to update user.'));
     }
@@ -259,7 +330,17 @@ export default function App() {
     setUserError('');
     try {
       const updated = await updateUserStatus(userId, { role });
-      setUsers((prev) => prev.map((user) => (user.id === userId ? updated : user)));
+      applyUserUpdate(updated);
+    } catch (err) {
+      setUserError(err.message || t('Unable to update user.'));
+    }
+  };
+
+  const handleUpdateUserPreferences = async (userId, updates) => {
+    setUserError('');
+    try {
+      const updated = await updateUserStatus(userId, updates);
+      applyUserUpdate(updated);
     } catch (err) {
       setUserError(err.message || t('Unable to update user.'));
     }
@@ -356,18 +437,23 @@ export default function App() {
             <div className="settings-title">{t('Settings & Localization')}</div>
             <label>
               {t('languageLabel')}
-              <select value={language} onChange={(event) => setLanguage(event.target.value)}>
+              <select
+                value={language}
+                onChange={(event) => handleLanguagePreferenceChange(event.target.value)}
+              >
                 <option value="en">{t('english')}</option>
                 <option value="sw">{t('swahili')}</option>
               </select>
             </label>
             <label>
               {t('timeZoneLabel')}
-              <select value={timeZone} onChange={(event) => setTimeZone(event.target.value)}>
-                <option value="America/Los_Angeles">{t('pacificTime')}</option>
-                <option value="Africa/Dar_es_Salaam">{t('tanzaniaTime')}</option>
-              </select>
+              <TimeZoneSelect
+                value={timeZone}
+                onChange={handleTimeZonePreferenceChange}
+                placeholder={t('Search time zones…')}
+              />
             </label>
+            {settingsError && <div className="settings-error">{settingsError}</div>}
           </div>
         </div>
         {isSuperAdmin && activeView === 'users' ? (
@@ -381,6 +467,7 @@ export default function App() {
             onInvite={handleInviteUser}
             notice={userNotice}
             currentUserId={currentUserId}
+            onUpdatePreferences={handleUpdateUserPreferences}
           />
         ) : (
           <>

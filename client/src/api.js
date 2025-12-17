@@ -169,6 +169,13 @@ export const updateUserStatus = (userId, payload) =>
     body: JSON.stringify(payload)
   });
 
+export const updateCurrentUser = (payload) =>
+  request('/me', {
+    method: 'PATCH',
+    headers: jsonHeaders,
+    body: JSON.stringify(payload)
+  });
+
 export const sendUserInvitation = async (user) => {
   const appLink =
     import.meta.env.VITE_APP_URL ||

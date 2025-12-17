@@ -1,5 +1,7 @@
 import { useMemo, useState } from 'react';
+import { DEFAULT_TIME_ZONE } from '../constants/timeZones.js';
 import { useTranslation } from '../i18n/LocalizationProvider.jsx';
+import TimeZoneSelect from './TimeZoneSelect.jsx';
 import './UserManagement.css';
 
 const roleOptions = [
@@ -7,8 +9,6 @@ const roleOptions = [
   { value: 'field-operator', labelKey: 'Field operator' },
   { value: 'analyst', labelKey: 'Analyst' }
 ];
-
-const emptyForm = { name: '', email: '', phone: '', enabled: true, role: 'analyst' };
 
 export default function UserManagement({
   users = [],
@@ -19,10 +19,20 @@ export default function UserManagement({
   onChangeRole,
   onInvite,
   notice = '',
-  currentUserId
+  currentUserId,
+  onUpdatePreferences
 }) {
-  const { t, formatDateTime } = useTranslation();
-  const [form, setForm] = useState(emptyForm);
+  const { t, formatDateTime, timeZone: appTimeZone, language } = useTranslation();
+  const buildEmptyForm = () => ({
+    name: '',
+    email: '',
+    phone: '',
+    enabled: true,
+    role: 'analyst',
+    preferredLanguage: language || 'en',
+    preferredTimeZone: appTimeZone || DEFAULT_TIME_ZONE
+  });
+  const [form, setForm] = useState(buildEmptyForm);
   const [formError, setFormError] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
@@ -47,7 +57,7 @@ export default function UserManagement({
     try {
       setSubmitting(true);
       await onCreate({ ...form });
-      setForm(emptyForm);
+      setForm(buildEmptyForm());
     } catch (err) {
       setFormError(err.message || t('Unable to save user.'));
     } finally {
@@ -150,6 +160,21 @@ export default function UserManagement({
               ))}
             </select>
           </label>
+          <label>
+            {t('Preferred language')}
+            <select name="preferredLanguage" value={form.preferredLanguage} onChange={handleChange}>
+              <option value="en">{t('english')}</option>
+              <option value="sw">{t('swahili')}</option>
+            </select>
+          </label>
+          <label>
+            {t('Preferred time zone')}
+            <TimeZoneSelect
+              value={form.preferredTimeZone}
+              onChange={(value) => setForm((prev) => ({ ...prev, preferredTimeZone: value }))}
+              placeholder={t('Search time zones…')}
+            />
+          </label>
           <label className="checkbox">
             <input
               type="checkbox"
@@ -179,6 +204,8 @@ export default function UserManagement({
                   <th>{t('Email')}</th>
                   <th>{t('Phone')}</th>
                   <th>{t('Role')}</th>
+                  <th>{t('Language')}</th>
+                  <th>{t('Time zone')}</th>
                   <th>{t('Status')}</th>
                   <th>{t('Added')}</th>
                   <th>{t('Actions')}</th>
@@ -205,6 +232,33 @@ export default function UserManagement({
                           ))}
                         </select>
                       )}
+                    </td>
+                    <td>
+                      <select
+                        value={user.preferredLanguage || 'en'}
+                        onChange={(event) =>
+                          typeof onUpdatePreferences === 'function'
+                            ? onUpdatePreferences(user.id, {
+                                preferredLanguage: event.target.value
+                              })
+                            : undefined
+                        }
+                      >
+                        <option value="en">{t('english')}</option>
+                        <option value="sw">{t('swahili')}</option>
+                      </select>
+                    </td>
+                    <td>
+                      <TimeZoneSelect
+                        value={user.preferredTimeZone || DEFAULT_TIME_ZONE}
+                        onChange={(value) =>
+                          typeof onUpdatePreferences === 'function'
+                            ? onUpdatePreferences(user.id, { preferredTimeZone: value })
+                            : undefined
+                        }
+                        className="compact"
+                        placeholder={t('Search time zones…')}
+                      />
                     </td>
                     <td>
                       <span className={`status-pill ${user.enabled ? 'success' : 'muted'}`}>

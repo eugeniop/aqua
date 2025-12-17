@@ -1,4 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import { DEFAULT_TIME_ZONE } from '../constants/timeZones.js';
 import { translations } from './translations.js';
 
 const LocalizationContext = createContext({
@@ -13,7 +14,6 @@ const LocalizationContext = createContext({
 const DEFAULT_LANGUAGE = 'en';
 const STORAGE_KEY = 'aqua-language';
 const TIMEZONE_STORAGE_KEY = 'aqua-timezone';
-const FALLBACK_TIMEZONE = 'Africa/Dar_es_Salaam';
 
 const formatTemplate = (template, vars = {}) =>
   template.replace(/\{(\w+)\}/g, (_, token) =>
@@ -27,14 +27,14 @@ export function LocalizationProvider({ children }) {
   });
   const [timeZone, setTimeZoneState] = useState(() => {
     if (typeof window === 'undefined') {
-      return FALLBACK_TIMEZONE;
+      return DEFAULT_TIME_ZONE;
     }
     const stored = localStorage.getItem(TIMEZONE_STORAGE_KEY);
     if (stored) {
       return stored;
     }
     const resolved = Intl.DateTimeFormat().resolvedOptions().timeZone;
-    return resolved || FALLBACK_TIMEZONE;
+    return resolved || DEFAULT_TIME_ZONE;
   });
 
   useEffect(() => {
