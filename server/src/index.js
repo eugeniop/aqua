@@ -8,6 +8,7 @@ dotenv.config();
 import siteRoutes from './routes/sites.js';
 import readingRoutes from './routes/readings.js';
 import userRoutes from './routes/users.js';
+import twilioRoutes from './routes/twilio.js';
 import { ensureRole, requireAuth } from './middleware/auth.js';
 
 import path from 'path';
@@ -22,6 +23,7 @@ const app = express();
 
 app.use(cors());
 app.use(express.json());
+app.use('/api/twilio', express.urlencoded({ extended: false }), twilioRoutes);
 
 app.get('/api/health', (_req, res) => {
   res.json({ status: 'ok' });

@@ -1,6 +1,7 @@
 import mongoose from 'mongoose';
 
 const VALID_ROLES = ['superadmin', 'admin', 'field-operator', 'analyst'];
+const SUPPORTED_LANGUAGES = ['en', 'sw'];
 
 const userSchema = new mongoose.Schema(
   {
@@ -20,6 +21,11 @@ const userSchema = new mongoose.Schema(
       type: String,
       trim: true
     },
+    preferredLanguage: {
+      type: String,
+      enum: SUPPORTED_LANGUAGES,
+      default: 'en'
+    },
     role: {
       type: String,
       enum: [...VALID_ROLES, ''],
@@ -35,6 +41,6 @@ const userSchema = new mongoose.Schema(
   }
 );
 
-export { VALID_ROLES };
+export { VALID_ROLES, SUPPORTED_LANGUAGES };
 
 export default mongoose.model('User', userSchema);
