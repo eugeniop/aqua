@@ -335,7 +335,6 @@ export default function SiteDetail({
   );
   const userName = (user?.name || '').trim();
   const userRole = user?.role || '';
-  const userRoleLabel = roleLabels[userRole] || 'Unknown role';
   const displayUserName = userName || 'Unknown operator';
   const defaultOperatorFilter = () => userName;
 
@@ -2001,7 +2000,7 @@ export default function SiteDetail({
               />
             </label>
             <p className="operator-reminder">
-              {t('Logged in as {name}', { name: displayUserName })} ({userRoleLabel})
+              {t('Logged in as {name}', { name: displayUserName })}
             </p>
             {recordError && <p className="form-error">{recordError}</p>}
           </form>
