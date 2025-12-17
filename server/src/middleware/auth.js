@@ -1,5 +1,5 @@
 import crypto from 'crypto';
-import User, { VALID_ROLES } from '../models/User.js';
+import User, { DEFAULT_TIME_ZONE, VALID_ROLES } from '../models/User.js';
 import { notifySuperadminsOfSignup } from '../services/notificationService.js';
 
 import dotenv from 'dotenv';
@@ -196,7 +196,9 @@ export const requireAuth = async (req, res, next) => {
       role,
       email,
       name: user.name?.trim() || payload.name || payload.nickname || payload.email || '',
-      enabled: user.enabled
+      enabled: user.enabled,
+      preferredLanguage: user.preferredLanguage || 'en',
+      preferredTimeZone: user.preferredTimeZone || DEFAULT_TIME_ZONE
     };
     next();
   } catch (error) {

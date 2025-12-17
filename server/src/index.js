@@ -9,6 +9,7 @@ import siteRoutes from './routes/sites.js';
 import readingRoutes from './routes/readings.js';
 import userRoutes from './routes/users.js';
 import twilioRoutes from './routes/twilio.js';
+import { getCurrentUserProfile, updateCurrentUserProfile } from './controllers/userController.js';
 import { ensureRole, requireAuth } from './middleware/auth.js';
 
 import path from 'path';
@@ -29,9 +30,8 @@ app.get('/api/health', (_req, res) => {
   res.json({ status: 'ok' });
 });
 
-app.get('/api/me', requireAuth, (req, res) => {
-  res.json(req.user);
-});
+app.get('/api/me', requireAuth, getCurrentUserProfile);
+app.patch('/api/me', requireAuth, updateCurrentUserProfile);
 
 app.use('/api/sites', requireAuth, siteRoutes);
 app.use('/api/users', requireAuth, ensureRole('superadmin'), userRoutes);

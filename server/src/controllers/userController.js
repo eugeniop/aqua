@@ -1,4 +1,4 @@
-import User, { SUPPORTED_LANGUAGES, VALID_ROLES } from '../models/User.js';
+import User, { DEFAULT_TIME_ZONE, SUPPORTED_LANGUAGES, VALID_ROLES } from '../models/User.js';
 
 const formatUser = (user) => ({
   id: user._id.toString(),
@@ -6,6 +6,7 @@ const formatUser = (user) => ({
   email: user.email,
   phone: user.phone || '',
   preferredLanguage: user.preferredLanguage || 'en',
+  preferredTimeZone: user.preferredTimeZone || DEFAULT_TIME_ZONE,
   role: user.role || '',
   enabled: user.enabled,
   createdAt: user.createdAt
@@ -14,6 +15,17 @@ const formatUser = (user) => ({
 const isValidEmail = (email) => /.+@.+\..+/.test(email);
 const allowedRoles = VALID_ROLES;
 const isValidLanguage = (value) => SUPPORTED_LANGUAGES.includes((value || '').toLowerCase());
+const isValidTimeZone = (value) => {
+  if (!value) {
+    return false;
+  }
+  try {
+    new Intl.DateTimeFormat('en-US', { timeZone: value }).format(new Date());
+    return true;
+  } catch (_error) {
+    return false;
+  }
+};
 
 export const listUsers = async (_req, res) => {
   try {
@@ -33,6 +45,9 @@ export const createUser = async (req, res) => {
     const preferredLanguage = isValidLanguage(req.body.preferredLanguage)
       ? req.body.preferredLanguage.toLowerCase()
       : 'en';
+    const preferredTimeZone = isValidTimeZone(req.body.preferredTimeZone)
+      ? req.body.preferredTimeZone
+      : DEFAULT_TIME_ZONE;
     const enabled = req.body.enabled != null ? Boolean(req.body.enabled) : true;
 
     if (!name) {
@@ -58,7 +73,8 @@ export const createUser = async (req, res) => {
       phone: phone || undefined,
       role,
       enabled,
-      preferredLanguage
+      preferredLanguage,
+      preferredTimeZone
     });
     res.status(201).json(formatUser(user));
   } catch (error) {
@@ -69,14 +85,27 @@ export const createUser = async (req, res) => {
 export const updateUserStatus = async (req, res) => {
   try {
     const { userId } = req.params;
-    const { enabled, role } = req.body;
+    const { enabled, role, preferredLanguage, preferredTimeZone } = req.body;
 
-    if (enabled == null && !role) {
-      return res.status(400).json({ message: 'Enabled state or role is required' });
+    const hasEnabledChange = enabled != null;
+    const hasRoleChange = Boolean(role);
+    const hasLanguageChange = preferredLanguage != null;
+    const hasTimeZoneChange = preferredTimeZone != null;
+
+    if (!hasEnabledChange && !hasRoleChange && !hasLanguageChange && !hasTimeZoneChange) {
+      return res.status(400).json({ message: 'An update payload is required' });
     }
 
-    if (role && !allowedRoles.includes(role)) {
+    if (hasRoleChange && !allowedRoles.includes(role)) {
       return res.status(400).json({ message: 'Invalid role provided' });
+    }
+
+    if (hasLanguageChange && !isValidLanguage(preferredLanguage)) {
+      return res.status(400).json({ message: 'Invalid language provided' });
+    }
+
+    if (hasTimeZoneChange && !isValidTimeZone(preferredTimeZone)) {
+      return res.status(400).json({ message: 'Invalid time zone provided' });
     }
 
     const user = await User.findById(userId);
@@ -84,16 +113,29 @@ export const updateUserStatus = async (req, res) => {
       return res.status(404).json({ message: 'User not found' });
     }
 
-    if (req.user?.id && req.user.id === userId && req.user.role === 'superadmin') {
+    if (
+      req.user?.id &&
+      req.user.id === userId &&
+      req.user.role === 'superadmin' &&
+      (hasRoleChange || hasEnabledChange)
+    ) {
       return res.status(400).json({ message: 'Superadmins cannot modify their own account' });
     }
 
-    if (enabled != null) {
+    if (hasEnabledChange) {
       user.enabled = Boolean(enabled);
     }
 
-    if (role) {
+    if (hasRoleChange) {
       user.role = role;
+    }
+
+    if (hasLanguageChange) {
+      user.preferredLanguage = preferredLanguage.toLowerCase();
+    }
+
+    if (hasTimeZoneChange) {
+      user.preferredTimeZone = preferredTimeZone;
     }
 
     await user.save();
@@ -101,5 +143,53 @@ export const updateUserStatus = async (req, res) => {
     res.json(formatUser(user));
   } catch (error) {
     res.status(500).json({ message: 'Unable to update user', error: error.message });
+  }
+};
+
+export const getCurrentUserProfile = async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id);
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    return res.json(formatUser(user));
+  } catch (error) {
+    return res.status(500).json({ message: 'Unable to load profile', error: error.message });
+  }
+};
+
+export const updateCurrentUserProfile = async (req, res) => {
+  try {
+    const { preferredLanguage, preferredTimeZone } = req.body;
+
+    if (preferredLanguage == null && preferredTimeZone == null) {
+      return res.status(400).json({ message: 'No updates provided' });
+    }
+
+    const user = await User.findById(req.user.id);
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    if (preferredLanguage != null) {
+      if (!isValidLanguage(preferredLanguage)) {
+        return res.status(400).json({ message: 'Invalid language provided' });
+      }
+      user.preferredLanguage = preferredLanguage.toLowerCase();
+    }
+
+    if (preferredTimeZone != null) {
+      if (!isValidTimeZone(preferredTimeZone)) {
+        return res.status(400).json({ message: 'Invalid time zone provided' });
+      }
+      user.preferredTimeZone = preferredTimeZone;
+    }
+
+    await user.save();
+
+    return res.json(formatUser(user));
+  } catch (error) {
+    return res.status(500).json({ message: 'Unable to update profile', error: error.message });
   }
 };

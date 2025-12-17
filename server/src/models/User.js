@@ -2,6 +2,7 @@ import mongoose from 'mongoose';
 
 const VALID_ROLES = ['superadmin', 'admin', 'field-operator', 'analyst'];
 const SUPPORTED_LANGUAGES = ['en', 'sw'];
+const DEFAULT_TIME_ZONE = 'Africa/Dar_es_Salaam';
 
 const userSchema = new mongoose.Schema(
   {
@@ -20,6 +21,11 @@ const userSchema = new mongoose.Schema(
     phone: {
       type: String,
       trim: true
+    },
+    preferredTimeZone: {
+      type: String,
+      trim: true,
+      default: DEFAULT_TIME_ZONE
     },
     preferredLanguage: {
       type: String,
@@ -41,6 +47,6 @@ const userSchema = new mongoose.Schema(
   }
 );
 
-export { VALID_ROLES, SUPPORTED_LANGUAGES };
+export { DEFAULT_TIME_ZONE, VALID_ROLES, SUPPORTED_LANGUAGES };
 
 export default mongoose.model('User', userSchema);
