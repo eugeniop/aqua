@@ -8,6 +8,7 @@ dotenv.config();
 import siteRoutes from './routes/sites.js';
 import readingRoutes from './routes/readings.js';
 import userRoutes from './routes/users.js';
+import operatorRoutes from './routes/operators.js';
 import twilioRoutes from './routes/twilio.js';
 import { getCurrentUserProfile, updateCurrentUserProfile } from './controllers/userController.js';
 import { ensureRole, requireAuth } from './middleware/auth.js';
@@ -34,6 +35,7 @@ app.get('/api/me', requireAuth, getCurrentUserProfile);
 app.patch('/api/me', requireAuth, updateCurrentUserProfile);
 
 app.use('/api/sites', requireAuth, siteRoutes);
+app.use('/api/operators', requireAuth, operatorRoutes);
 app.use('/api/users', requireAuth, ensureRole('superadmin'), userRoutes);
 app.use('/api', requireAuth, readingRoutes);
 
