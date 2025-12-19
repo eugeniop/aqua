@@ -254,8 +254,8 @@ export const recordWellMeasurementsBulk = async (req, res) => {
     }
 
     const { wellId } = req.params;
-    const { measurements } = req.body ?? {};
-    const operator = resolveOperatorName(req);
+    const { measurements, operator: providedOperator } = req.body ?? {};
+    const operator = resolveOperatorName(req, providedOperator);
 
     if (!Array.isArray(measurements)) {
       return res.status(400).json({ message: 'Measurements payload must be an array' });

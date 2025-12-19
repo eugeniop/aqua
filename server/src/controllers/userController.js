@@ -36,6 +36,21 @@ export const listUsers = async (_req, res) => {
   }
 };
 
+export const listOperators = async (_req, res) => {
+  try {
+    const users = await User.find().sort({ name: 1 });
+    res.json(
+      users.map((user) => ({
+        id: user._id.toString(),
+        name: user.name,
+        role: user.role || ''
+      }))
+    );
+  } catch (error) {
+    res.status(500).json({ message: 'Unable to load operators', error: error.message });
+  }
+};
+
 export const createUser = async (req, res) => {
   try {
     const name = (req.body.name || '').trim();

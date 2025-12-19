@@ -5,13 +5,15 @@ import FlowmeterCard from './FlowmeterCard.jsx';
 import WellCard from './WellCard.jsx';
 import Modal from './Modal.jsx';
 import HistoryChart from './HistoryChart.jsx';
+import TimeZoneSelect from './TimeZoneSelect.jsx';
 import {
   getTankReadings,
   getFlowmeterReadings,
   getWellMeasurements,
   deleteTankReading,
   deleteFlowmeterReading,
-  deleteWellMeasurement
+  deleteWellMeasurement,
+  getOperators
 } from '../api.js';
 import './SiteDetail.css';
 
@@ -108,6 +110,54 @@ const parseDateTimeInTimeZone = (value, timeZone) => {
   return new Date(utcDate.getTime() - offset * 60000);
 };
 
+const parseCsvText = (content) => {
+  const rows = [];
+  let current = '';
+  let row = [];
+  let inQuotes = false;
+
+  for (let index = 0; index < content.length; index += 1) {
+    const char = content[index];
+
+    if (char === '"') {
+      const nextChar = content[index + 1];
+      if (inQuotes && nextChar === '"') {
+        current += '"';
+        index += 1;
+        continue;
+      }
+      inQuotes = !inQuotes;
+      continue;
+    }
+
+    if (!inQuotes && char === ',') {
+      row.push(current);
+      current = '';
+      continue;
+    }
+
+    if (!inQuotes && (char === '\n' || char === '\r')) {
+      if (char === '\r' && content[index + 1] === '\n') {
+        index += 1;
+      }
+      row.push(current);
+      rows.push(row);
+      row = [];
+      current = '';
+      continue;
+    }
+
+    current += char;
+  }
+
+  if (current || row.length > 0) {
+    row.push(current);
+    rows.push(row);
+  }
+
+  return rows.filter((entry) => entry.some((cell) => (cell || '').trim() !== ''));
+};
+
 const BULK_ROW_COUNT = 20;
 const defaultPumpState = 'off';
 
@@ -173,19 +223,21 @@ export default function SiteDetail({
   onRecordWellBulk
 }) {
   const { t, formatDateTime, timeZone } = useTranslation();
+  const [bulkTimeZone, setBulkTimeZone] = useState(timeZone);
   const defaultTimestamp = () => formatDateTimeInput(new Date(), timeZone);
-  const defaultDateOnly = () => formatDateInput(new Date(), timeZone);
-  const emptyBulkRow = (pumpState = defaultPumpState) => ({
-    date: defaultDateOnly(),
+  const defaultDateOnly = (zone = timeZone) => formatDateInput(new Date(), zone);
+  const emptyBulkRow = (pumpState = defaultPumpState, zone = bulkTimeZone) => ({
+    date: defaultDateOnly(zone),
     time: '',
     depthToWater: '',
     pumpState,
     comment: ''
   });
-  const createBulkRows = () => Array.from({ length: BULK_ROW_COUNT }, () => emptyBulkRow());
+  const createBulkRows = (zone = bulkTimeZone) =>
+    Array.from({ length: BULK_ROW_COUNT }, () => emptyBulkRow(defaultPumpState, zone));
   const parseBulkRowDateTime = (row) =>
     row.date && (row.time || '').trim()
-      ? parseDateTimeInTimeZone(`${row.date}T${row.time}`, timeZone)
+      ? parseDateTimeInTimeZone(`${row.date}T${row.time}`, bulkTimeZone || timeZone)
       : null;
   const toRecordedAtIso = (value) => {
     if (!value) {
@@ -336,6 +388,7 @@ export default function SiteDetail({
   const userName = (user?.name || '').trim();
   const userRole = user?.role || '';
   const displayUserName = userName || 'Unknown operator';
+  const canSelectBulkOperator = userRole === 'admin' || userRole === 'superadmin';
   const defaultOperatorFilter = () => userName;
 
   const [createModal, setCreateModal] = useState(null);
@@ -355,6 +408,11 @@ export default function SiteDetail({
   const [bulkSubmitting, setBulkSubmitting] = useState(false);
   const [bulkConfirmPending, setBulkConfirmPending] = useState(null);
   const [bulkUnsavedConfirm, setBulkUnsavedConfirm] = useState(false);
+  const [bulkOperator, setBulkOperator] = useState('');
+  const [bulkOperatorOptions, setBulkOperatorOptions] = useState([]);
+  const [bulkOperatorLoading, setBulkOperatorLoading] = useState(false);
+  const [bulkOperatorError, setBulkOperatorError] = useState('');
+  const [bulkImportNotice, setBulkImportNotice] = useState('');
 
   const [visibleTypes, setVisibleTypes] = useState(() => ({ ...defaultVisibleTypes }));
   const [historyModal, setHistoryModal] = useState(null);
@@ -423,6 +481,12 @@ export default function SiteDetail({
     setBulkSubmitting(false);
     setBulkConfirmPending(null);
     setBulkUnsavedConfirm(false);
+    setBulkOperator('');
+    setBulkOperatorOptions([]);
+    setBulkOperatorLoading(false);
+    setBulkOperatorError('');
+    setBulkImportNotice('');
+    setBulkTimeZone(timeZone);
     setVisibleTypes({ ...defaultVisibleTypes });
     setHistoryModal(null);
     setHistoryPage(1);
@@ -593,6 +657,19 @@ export default function SiteDetail({
     }
     return Array.from(options).sort((a, b) => a.localeCompare(b));
   }, [historyState.operators, userName]);
+
+  const bulkOperatorOptionsList = useMemo(() => {
+    const options = new Set();
+    (bulkOperatorOptions || []).forEach((operator) => {
+      if (operator?.name) {
+        options.add(operator.name);
+      }
+    });
+    if (userName) {
+      options.add(userName);
+    }
+    return Array.from(options).sort((a, b) => a.localeCompare(b));
+  }, [bulkOperatorOptions, userName]);
 
   const historyDeleteHandlers = {
     well: deleteWellMeasurement,
@@ -945,6 +1022,120 @@ export default function SiteDetail({
     !(row.time || '').trim() &&
     !(row.comment || '').trim();
 
+  const csvHeaderAliases = {
+    date: ['date'],
+    time: ['time'],
+    depth: ['depth to water (in meters)', 'depth to water (m)', 'depth to water'],
+    comment: ['comments', 'comment']
+  };
+
+  const normalizeCsvHeader = (value) => (value || '').trim().toLowerCase();
+
+  const normalizeCsvDate = (value) => {
+    const trimmed = (value || '').trim();
+    if (!trimmed) {
+      return '';
+    }
+
+    if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
+      return trimmed;
+    }
+
+    const monthDayYear = trimmed.match(/^(\d{1,2})[\/-](\d{1,2})[\/-](\d{2,4})$/);
+    if (monthDayYear) {
+      const [, month, day, year] = monthDayYear;
+      const normalizedYear = year.length === 2 ? `20${year}` : year;
+      return `${normalizedYear}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+    }
+
+    const yearFirst = trimmed.match(/^(\d{4})[\/-](\d{1,2})[\/-](\d{1,2})$/);
+    if (yearFirst) {
+      const [, year, month, day] = yearFirst;
+      return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+    }
+
+    const parsed = new Date(trimmed);
+    if (!Number.isNaN(parsed.getTime())) {
+      return formatDateInput(parsed, bulkTimeZone || timeZone);
+    }
+
+    return '';
+  };
+
+  const normalizeCsvTime = (value) => {
+    const trimmed = (value || '').trim();
+    if (!trimmed) {
+      return '';
+    }
+
+    const ampmMatch = trimmed.match(/^(\d{1,2}):(\d{2})(?::\d{2})?\s*(am|pm)$/i);
+    if (ampmMatch) {
+      let hour = Number(ampmMatch[1]);
+      const minute = ampmMatch[2];
+      const period = ampmMatch[3].toLowerCase();
+      if (period === 'pm' && hour < 12) {
+        hour += 12;
+      }
+      if (period === 'am' && hour === 12) {
+        hour = 0;
+      }
+      return `${String(hour).padStart(2, '0')}:${minute}`;
+    }
+
+    const timeMatch = trimmed.match(/^(\d{1,2}):(\d{2})(?::\d{2})?$/);
+    if (timeMatch) {
+      return `${String(timeMatch[1]).padStart(2, '0')}:${timeMatch[2]}`;
+    }
+
+    return '';
+  };
+
+  const parseBulkCsvRows = (content) => {
+    const rows = parseCsvText(content);
+    if (rows.length === 0) {
+      return { dataRows: [], hasHeader: false };
+    }
+
+    const headerValues = rows[0].map(normalizeCsvHeader);
+    const headerMap = {};
+
+    headerValues.forEach((header, index) => {
+      if (csvHeaderAliases.date.includes(header)) {
+        headerMap.date = index;
+      }
+      if (csvHeaderAliases.time.includes(header)) {
+        headerMap.time = index;
+      }
+      if (csvHeaderAliases.depth.includes(header)) {
+        headerMap.depth = index;
+      }
+      if (csvHeaderAliases.comment.includes(header)) {
+        headerMap.comment = index;
+      }
+    });
+
+    const hasHeader =
+      headerMap.date != null ||
+      headerMap.time != null ||
+      headerMap.depth != null ||
+      headerMap.comment != null;
+
+    const dataRows = hasHeader ? rows.slice(1) : rows;
+    const columnMap = hasHeader
+      ? headerMap
+      : { date: 0, time: 1, depth: 2, comment: 3 };
+
+    return {
+      hasHeader,
+      dataRows: dataRows.map((row) => ({
+        date: normalizeCsvDate(row[columnMap.date]),
+        time: normalizeCsvTime(row[columnMap.time]),
+        depthToWater: (row[columnMap.depth] || '').trim(),
+        comment: (row[columnMap.comment] || '').trim()
+      }))
+    };
+  };
+
   const getPreviousPumpState = (rows, index) => {
     for (let cursor = index - 1; cursor >= 0; cursor -= 1) {
       const pumpState = rows[cursor]?.pumpState;
@@ -961,13 +1152,71 @@ export default function SiteDetail({
     if (!canRecordMeasurements) {
       return;
     }
+    const zone = timeZone;
     setBulkWellModal(well);
-    setBulkRows(createBulkRows());
+    setBulkRows(createBulkRows(zone));
     setBulkErrors({});
     setBulkError('');
     setBulkConfirmPending(null);
     setBulkUnsavedConfirm(false);
+    setBulkOperator(userName);
+    setBulkTimeZone(zone);
+    setBulkImportNotice('');
+    setBulkOperatorError('');
   };
+
+  useEffect(() => {
+    if (!bulkWellModal) {
+      return;
+    }
+
+    let cancelled = false;
+
+    const loadOperators = async () => {
+      setBulkOperatorLoading(true);
+      setBulkOperatorError('');
+      try {
+        const result = await getOperators();
+        if (cancelled) {
+          return;
+        }
+        setBulkOperatorOptions(result || []);
+      } catch (error) {
+        if (cancelled) {
+          return;
+        }
+        setBulkOperatorError(error.message || t('Unable to load operators.'));
+      } finally {
+        if (!cancelled) {
+          setBulkOperatorLoading(false);
+        }
+      }
+    };
+
+    loadOperators();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [bulkWellModal, t]);
+
+  useEffect(() => {
+    if (!bulkWellModal) {
+      return;
+    }
+    setBulkErrors((prevErrors) =>
+      applyBulkChronologyErrors(bulkRows, prevErrors, parseBulkRowDateTime)
+    );
+  }, [bulkTimeZone, bulkWellModal]);
+
+  useEffect(() => {
+    if (!bulkWellModal) {
+      return;
+    }
+    if (!bulkOperator && bulkOperatorOptionsList.length > 0) {
+      setBulkOperator(bulkOperatorOptionsList[0]);
+    }
+  }, [bulkOperator, bulkOperatorOptionsList, bulkWellModal]);
 
   const closeBulkWellModal = () => {
     if (bulkSubmitting) {
@@ -980,6 +1229,20 @@ export default function SiteDetail({
     setBulkSubmitting(false);
     setBulkConfirmPending(null);
     setBulkUnsavedConfirm(false);
+    setBulkOperator('');
+    setBulkOperatorOptions([]);
+    setBulkOperatorLoading(false);
+    setBulkOperatorError('');
+    setBulkImportNotice('');
+    setBulkTimeZone(timeZone);
+  };
+
+  const handleBulkOperatorChange = (event) => {
+    setBulkOperator(event.target.value);
+  };
+
+  const handleBulkTimeZoneChange = (value) => {
+    setBulkTimeZone(value);
   };
 
   const handleBulkRowChange = (index, field) => (event) => {
@@ -1135,7 +1398,70 @@ export default function SiteDetail({
     return { errors, payload, hasChronologyError };
   };
 
+  const handleBulkCsvUpload = async (event) => {
+    const file = event.target.files?.[0];
+    if (!file) {
+      return;
+    }
+
+    setBulkError('');
+    setBulkImportNotice('');
+
+    try {
+      const content = await file.text();
+      const { dataRows } = parseBulkCsvRows(content);
+      if (dataRows.length === 0) {
+        setBulkError(t('No rows were found in that CSV file.'));
+        return;
+      }
+
+      const trimmedRows = dataRows.slice(0, BULK_ROW_COUNT);
+      let currentPumpState = defaultPumpState;
+      const nextRows = trimmedRows.map((row) => {
+        const resolvedPumpState = currentPumpState;
+        currentPumpState = resolvedPumpState;
+        return {
+          date: row.date || defaultDateOnly(bulkTimeZone || timeZone),
+          time: row.time,
+          depthToWater: row.depthToWater,
+          pumpState: resolvedPumpState,
+          comment: row.comment
+        };
+      });
+
+      const filledRows = [
+        ...nextRows,
+        ...Array.from({ length: Math.max(0, BULK_ROW_COUNT - nextRows.length) }, () =>
+          emptyBulkRow(currentPumpState)
+        )
+      ];
+
+      const { errors } = validateBulkRows(filledRows);
+      setBulkRows(filledRows);
+      setBulkErrors(errors);
+      setBulkError('');
+      if (dataRows.length > BULK_ROW_COUNT) {
+        setBulkImportNotice(t('Imported the first {count} rows from the CSV.', { count: BULK_ROW_COUNT }));
+      } else {
+        setBulkImportNotice(t('Imported {count} rows from the CSV.', { count: nextRows.length }));
+      }
+    } catch (error) {
+      setBulkError(error.message || t('Unable to import CSV.'));
+    } finally {
+      event.target.value = '';
+    }
+  };
+
   const handleBulkSaveRequest = () => {
+    if (!bulkOperator?.trim()) {
+      setBulkError(t('Select an operator before saving.'));
+      return;
+    }
+    if (!bulkTimeZone) {
+      setBulkError(t('Select a time zone before saving.'));
+      return;
+    }
+
     const { errors, payload, hasChronologyError } = validateBulkRows(bulkRows);
     setBulkErrors(errors);
     if (Object.keys(errors).length > 0) {
@@ -1159,7 +1485,10 @@ export default function SiteDetail({
     }
     try {
       setBulkSubmitting(true);
-      await onRecordWellBulk(bulkWellModal.id, { measurements: bulkConfirmPending.payload });
+      await onRecordWellBulk(bulkWellModal.id, {
+        operator: bulkOperator?.trim() || undefined,
+        measurements: bulkConfirmPending.payload
+      });
       closeBulkWellModal();
     } catch (error) {
       setBulkError(error.message || t('Unable to save measurement.'));
@@ -1177,7 +1506,7 @@ export default function SiteDetail({
     if (bulkSubmitting) {
       return;
     }
-    const hasChanges = bulkRows.some((row) => !isBulkRowEmpty(row));
+    const hasChanges = bulkRows.some((row) => !isBulkRowPristine(row));
     if (hasChanges) {
       setBulkUnsavedConfirm(true);
       return;
@@ -1707,7 +2036,48 @@ export default function SiteDetail({
             </>
           }
         >
-          <p className="operator-reminder">{t('Operator: {name}', { name: displayUserName })}</p>
+          <div className="bulk-controls">
+            <label>
+              {t('Operator')}
+              <select
+                value={bulkOperator}
+                onChange={handleBulkOperatorChange}
+                disabled={!canSelectBulkOperator || bulkOperatorLoading}
+              >
+                {bulkOperatorLoading && bulkOperatorOptionsList.length === 0 && (
+                  <option value="">{t('Loading operators…')}</option>
+                )}
+                {!bulkOperator && <option value="">{t('Select an operator')}</option>}
+                {bulkOperatorOptionsList.map((operator) => (
+                  <option key={operator} value={operator}>
+                    {operator}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label>
+              {t('Time zone')}
+              <TimeZoneSelect
+                value={bulkTimeZone}
+                onChange={handleBulkTimeZoneChange}
+                placeholder={t('Search time zones…')}
+              />
+            </label>
+            <label className="bulk-upload">
+              {t('Import CSV')}
+              <input
+                type="file"
+                accept=".csv,text/csv"
+                onChange={handleBulkCsvUpload}
+                disabled={bulkSubmitting}
+              />
+            </label>
+          </div>
+          <p className="bulk-helper-text">
+            {t('CSV columns: Date, Time, Depth to water (in meters), Comments.')}
+          </p>
+          {bulkOperatorError && <p className="form-error">{bulkOperatorError}</p>}
+          {bulkImportNotice && <p className="bulk-import-notice">{bulkImportNotice}</p>}
           <div className="bulk-grid-wrapper">
             <table className="bulk-grid">
               <thead>
@@ -1723,7 +2093,7 @@ export default function SiteDetail({
               <tbody>
                 {bulkRows.map((row, index) => {
                   const rowErrors = bulkErrors[index] || {};
-                  const hasContent = !isBulkRowEmpty(row);
+                  const hasContent = !isBulkRowPristine(row);
                   return (
                     <tr key={`bulk-row-${index}`}>
                       <td>

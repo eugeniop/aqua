@@ -155,6 +155,8 @@ export const getCurrentUser = () => request('/me');
 
 export const getUsers = () => request('/users');
 
+export const getOperators = () => request('/operators');
+
 export const createUser = (payload) =>
   request('/users', {
     method: 'POST',

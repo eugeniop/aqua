@@ -490,6 +490,32 @@
   max-height: none;
 }
 
+.bulk-controls {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  margin-bottom: 0.75rem;
+}
+
+.bulk-controls label {
+  display: grid;
+  gap: 0.35rem;
+  font-weight: 600;
+}
+
+.bulk-controls select,
+.bulk-controls input[type='file'],
+.bulk-controls .timezone-select input {
+  border: 1px solid #cbd5f5;
+  border-radius: 8px;
+  padding: 0.45rem 0.5rem;
+  font-size: 0.95rem;
+}
+
+.bulk-upload input[type='file'] {
+  padding: 0.35rem 0.45rem;
+}
+
 .bulk-grid-wrapper {
   border: 1px solid #e5e7eb;
   border-radius: 10px;
@@ -564,6 +590,12 @@
   margin-top: 0.6rem;
   color: #4b5563;
   font-size: 0.95rem;
+}
+
+.bulk-import-notice {
+  margin: 0.5rem 0 0;
+  color: #2563eb;
+  font-size: 0.9rem;
 }
 
 .modal-form {
