@@ -1025,8 +1025,16 @@ export default function SiteDetail({
   const csvHeaderAliases = {
     date: ['date'],
     time: ['time'],
-    depth: ['depth to water (in meters)', 'depth to water (m)', 'depth to water'],
-    comment: ['comments', 'comment']
+    depth: [
+      'depth to water (in meters)',
+      'depth to water (meters)',
+      'depth to water (metres)',
+      'depth to water (m)',
+      'depth to water',
+      'depth (m)',
+      'depth'
+    ],
+    comment: ['comments', 'comment', 'notes', 'note', 'remarks', 'remark']
   };
 
   const normalizeCsvHeader = (value) => (value || '').trim().toLowerCase();
@@ -1121,9 +1129,18 @@ export default function SiteDetail({
       headerMap.comment != null;
 
     const dataRows = hasHeader ? rows.slice(1) : rows;
-    const columnMap = hasHeader
-      ? headerMap
-      : { date: 0, time: 1, depth: 2, comment: 3 };
+    const defaultColumnMap = { date: 0, time: 1, depth: 2, comment: 3 };
+    const columnMap = hasHeader ? { ...headerMap } : defaultColumnMap;
+
+    if (hasHeader) {
+      const usedIndices = new Set(Object.values(columnMap).filter((value) => value != null));
+      Object.entries(defaultColumnMap).forEach(([key, index]) => {
+        if (columnMap[key] == null && !usedIndices.has(index)) {
+          columnMap[key] = index;
+          usedIndices.add(index);
+        }
+      });
+    }
 
     return {
       hasHeader,

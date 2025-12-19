@@ -510,6 +510,8 @@
   border-radius: 8px;
   padding: 0.45rem 0.5rem;
   font-size: 0.95rem;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .bulk-upload input[type='file'] {
