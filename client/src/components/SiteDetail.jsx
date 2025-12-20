@@ -1432,9 +1432,9 @@ export default function SiteDetail({
         return;
       }
 
-      const trimmedRows = dataRows.slice(0, BULK_ROW_COUNT);
+      const importedRows = dataRows;
       let currentPumpState = defaultPumpState;
-      const nextRows = trimmedRows.map((row) => {
+      const nextRows = importedRows.map((row) => {
         const resolvedPumpState = currentPumpState;
         currentPumpState = resolvedPumpState;
         return {
@@ -1446,22 +1446,21 @@ export default function SiteDetail({
         };
       });
 
-      const filledRows = [
-        ...nextRows,
-        ...Array.from({ length: Math.max(0, BULK_ROW_COUNT - nextRows.length) }, () =>
-          emptyBulkRow(currentPumpState)
-        )
-      ];
+      const filledRows =
+        nextRows.length >= BULK_ROW_COUNT
+          ? nextRows
+          : [
+              ...nextRows,
+              ...Array.from({ length: Math.max(0, BULK_ROW_COUNT - nextRows.length) }, () =>
+                emptyBulkRow(currentPumpState)
+              )
+            ];
 
       const { errors } = validateBulkRows(filledRows);
       setBulkRows(filledRows);
       setBulkErrors(errors);
       setBulkError('');
-      if (dataRows.length > BULK_ROW_COUNT) {
-        setBulkImportNotice(t('Imported the first {count} rows from the CSV.', { count: BULK_ROW_COUNT }));
-      } else {
-        setBulkImportNotice(t('Imported {count} rows from the CSV.', { count: nextRows.length }));
-      }
+      setBulkImportNotice(t('Imported {count} rows from the CSV.', { count: nextRows.length }));
     } catch (error) {
       setBulkError(error.message || t('Unable to import CSV.'));
     } finally {

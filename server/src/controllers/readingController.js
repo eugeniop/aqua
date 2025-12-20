@@ -265,11 +265,11 @@ export const recordWellMeasurementsBulk = async (req, res) => {
       return res.status(400).json({ message: 'Operator name is required' });
     }
 
-    const trimmed = measurements.slice(0, 20);
+    const rows = measurements;
     const payload = [];
 
-    for (let index = 0; index < trimmed.length; index += 1) {
-      const entry = trimmed[index] ?? {};
+    for (let index = 0; index < rows.length; index += 1) {
+      const entry = rows[index] ?? {};
       const { depth, depthToWater, comment, recordedAt, pumpState } = entry;
       const waterDepth = depthToWater ?? depth;
 
