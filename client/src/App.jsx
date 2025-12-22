@@ -245,7 +245,7 @@ export default function App() {
 
   const handleCreateSite = async (payload) => {
     try {
-      if (currentUser?.role !== 'admin') {
+      if (currentUser?.role !== 'admin' && currentUser?.role !== 'superadmin') {
         throw new Error(t('You do not have permission to create sites.'));
       }
       const newSite = await createSite(payload);
