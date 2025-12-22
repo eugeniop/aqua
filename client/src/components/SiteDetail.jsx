@@ -231,6 +231,7 @@ export default function SiteDetail({
     time: '',
     depthToWater: '',
     pumpState,
+    pumpStateAssumed: false,
     comment: ''
   });
   const createBulkRows = (zone = bulkTimeZone) =>
@@ -1098,6 +1099,20 @@ export default function SiteDetail({
     return '';
   };
 
+  const inferPumpStateFromComment = (comment) => {
+    const trimmed = (comment || '').trim();
+    if (!trimmed) {
+      return null;
+    }
+    if (/^pump on$/i.test(trimmed)) {
+      return 'on';
+    }
+    if (/^pump off$/i.test(trimmed)) {
+      return 'off';
+    }
+    return null;
+  };
+
   const parseBulkCsvRows = (content) => {
     const rows = parseCsvText(content);
     if (rows.length === 0) {
@@ -1432,16 +1447,37 @@ export default function SiteDetail({
         return;
       }
 
-      const importedRows = dataRows;
+      const importedRows = dataRows
+        .map((row, index) => ({ ...row, _index: index }))
+        .sort((rowA, rowB) => {
+          const parsedA =
+            rowA.date && rowA.time
+              ? parseDateTimeInTimeZone(`${rowA.date}T${rowA.time}`, bulkTimeZone || timeZone)
+              : null;
+          const parsedB =
+            rowB.date && rowB.time
+              ? parseDateTimeInTimeZone(`${rowB.date}T${rowB.time}`, bulkTimeZone || timeZone)
+              : null;
+          const timeA = parsedA && !Number.isNaN(parsedA.getTime()) ? parsedA.getTime() : null;
+          const timeB = parsedB && !Number.isNaN(parsedB.getTime()) ? parsedB.getTime() : null;
+
+          if (timeA == null || timeB == null) {
+            return rowA._index - rowB._index;
+          }
+
+          return timeA - timeB;
+        });
       let currentPumpState = defaultPumpState;
       const nextRows = importedRows.map((row) => {
-        const resolvedPumpState = currentPumpState;
+        const inferredPumpState = inferPumpStateFromComment(row.comment);
+        const resolvedPumpState = inferredPumpState || currentPumpState;
         currentPumpState = resolvedPumpState;
         return {
           date: row.date || defaultDateOnly(bulkTimeZone || timeZone),
           time: row.time,
           depthToWater: row.depthToWater,
           pumpState: resolvedPumpState,
+          pumpStateAssumed: Boolean(inferredPumpState),
           comment: row.comment
         };
       });
@@ -2111,7 +2147,10 @@ export default function SiteDetail({
                   const rowErrors = bulkErrors[index] || {};
                   const hasContent = !isBulkRowPristine(row);
                   return (
-                    <tr key={`bulk-row-${index}`}>
+                    <tr
+                      key={`bulk-row-${index}`}
+                      className={row.pumpStateAssumed ? 'bulk-row-assumed' : undefined}
+                    >
                       <td>
                         <input
                           type="date"

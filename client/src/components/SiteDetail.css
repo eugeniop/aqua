@@ -554,6 +554,10 @@
   z-index: 1;
 }
 
+.bulk-row-assumed td {
+  background: #fef9c3;
+}
+
 .bulk-grid input {
   width: 100%;
   box-sizing: border-box;
