@@ -437,7 +437,7 @@ export default function SiteDetail({
   const [historyDownloading, setHistoryDownloading] = useState(false);
 
   const canDeleteHistoryItem = (item) => {
-    if (userRole === 'admin') {
+    if (userRole === 'admin' || userRole === 'superadmin') {
       return true;
     }
     if (userRole === 'field-operator') {
