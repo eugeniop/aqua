@@ -30,24 +30,25 @@ comments.
 ## Core navigation
 
 ### Login & session
-1. Sign in with your Auth0 account.
+1. Sign in with your Google account or a Username/Password
 2. After login, your role is shown in the top-right session panel.
 3. Use **Log out** to end the session.
+4. The system is by invite only. Meanining that you can only access the system if a Superadmin sends an invite.
 
 ### Settings & localization
-* Set **Language** (English / Swahili).
+* Set **Language** preferences by user (currently: English / KiSwahili).
 * Set **Time zone** (used for timestamps and history filters).
+* All measurements are recorded in **Universal Time**.
 
 ### Sites panel
 * The left panel lists **Sites**.
 * Select a site to view its details.
-* Admins can create a site with name and location.
+* Admins can create a site with name and (optional) location.
 
 ### Site detail view
 * The main view shows **Wells**, **Tanks**, and **Flowmeters** as cards.
 * Use feature filters to show/hide categories.
 * Each card displays the latest reading/measurement.
-* Use the history action to open the **History** modal for that asset.
 
 ## Feature guide
 
@@ -65,7 +66,7 @@ comments.
 4. Analysts review history and export data.
 
 ### Wells
-**What it is:** A water source that tracks depth-to-water measurements and pump state.
+**What it is:** A water source. The app tracks **depth-to-water** measurements and **pump state**, as well as optional field notes.
 
 **What you can do**
 * **Admin:** Add a well (name + location), record measurements, delete any entry.
@@ -73,19 +74,19 @@ comments.
 * **Analyst:** View latest measurement, history, charts, and download CSV.
 
 **Measurement fields**
-* **Depth to water (m)** (required)
+* **Depth to water (m)** (required. Accepts meters with a mm precision).
 * **Pump state** (on/off)
-* **Recorded at** (date/time)
-* **Operator name**
-* **Comment**
+* **Recorded at** (date/time using the user's configured Timezone)
+* **Operator name** (automatically recorded from login information)
+* **Comment** (an optional note to capture context information)
 
 **Bulk entry (wells only)**
-* Bulk import CSV with columns: **Date, Time, Depth to water (m), Comments**.
+* Bulk import from a CSV formatted file (e.g. an Excel) with these columns: **Date, Time, Depth to water (m), Comments**.
 * Admins can select an operator for bulk entries; field operators use their own name.
 * The bulk grid validates missing or out-of-order timestamps before saving.
 
 ### Tanks
-**What it is:** A storage asset that tracks water level readings.
+**What it is:** A storage asset that tracks water level readings. It can be a single unit, or a cluster of tanks that are interconnected.
 
 **What you can do**
 * **Admin:** Add a tank (name + capacity), record readings, delete any entry.
@@ -93,7 +94,7 @@ comments.
 * **Analyst:** View latest reading, history, charts, and download CSV.
 
 **Reading fields**
-* **Level (L)** (required)
+* **Level (L)** (required. Accepts only integer numbers in liters)
 * **Recorded at** (date/time)
 * **Operator name**
 * **Comment**
@@ -116,21 +117,14 @@ comments.
 ## History, filtering, and exports
 
 ### History modal
-Each asset card opens a **History** modal with:
+Each asset card opens a **View** screen with:
 * **Table view:** paginated history, operator filter, date range filters, and delete actions
   (if permitted).
-* **Chart view:** visual history with date-range controls (wells invert the Y-axis).
+* **Chart view:** visual history with date-range controls (well measurements have inverted Y-axis).
 
 ### Filters
 * **Operator filter** to narrow to specific operators.
 * **Date range** filters in the site time zone.
 
 ### CSV download
-* Download history data for the currently filtered range.
-
-## Screenshots
-Screenshots are not available in this environment because the app requires Auth0 and a live
-backend to render the UI. If you can run the client locally, capture:
-* Sites panel and site detail view.
-* Each asset card type (well, tank, flowmeter).
-* History modal (table + chart) and bulk well import.
+* Download data for the currently filtered range.
