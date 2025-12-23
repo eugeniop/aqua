@@ -186,7 +186,8 @@ const applyBulkChronologyErrors = (rows, errors, parseDate) => {
   return nextErrors;
 };
 
-const HISTORY_PAGE_SIZE = 5;
+const TABLE_PAGE_SIZE = Number.parseInt(import.meta.env.VITE_TABLE_PAGE_SIZE, 10);
+const HISTORY_PAGE_SIZE = Number.isNaN(TABLE_PAGE_SIZE) || TABLE_PAGE_SIZE <= 0 ? 20 : TABLE_PAGE_SIZE;
 
 const defaultVisibleTypes = {
   well: true,
@@ -240,6 +241,16 @@ export default function SiteDetail({
     row.date && (row.time || '').trim()
       ? parseDateTimeInTimeZone(`${row.date}T${row.time}`, bulkTimeZone || timeZone)
       : null;
+  const roundDepthToWater = (value) => {
+    if (value == null || value === '') {
+      return '';
+    }
+    const parsed = Number(value);
+    if (Number.isNaN(parsed)) {
+      return value;
+    }
+    return parsed.toFixed(2);
+  };
   const toRecordedAtIso = (value) => {
     if (!value) {
       return undefined;
@@ -1419,8 +1430,9 @@ export default function SiteDetail({
       const pumpState = row.pumpState === 'on' ? 'on' : row.pumpState === 'off' ? 'off' : lastPumpState;
       lastPumpState = pumpState;
 
+      const roundedDepth = Math.round(depthValue * 100) / 100;
       payload.push({
-        depthToWater: depthValue,
+        depthToWater: roundedDepth,
         pumpState,
         comment: trimmedComment || undefined,
         recordedAt
@@ -1475,7 +1487,7 @@ export default function SiteDetail({
         return {
           date: row.date || defaultDateOnly(bulkTimeZone || timeZone),
           time: row.time,
-          depthToWater: row.depthToWater,
+          depthToWater: roundDepthToWater(row.depthToWater),
           pumpState: resolvedPumpState,
           pumpStateAssumed: Boolean(inferredPumpState),
           comment: row.comment
@@ -2015,7 +2027,10 @@ export default function SiteDetail({
                         </thead>
                         <tbody>
                           {historyState.items.map((item) => (
-                            <tr key={item.id}>
+                            <tr
+                              key={item.id}
+                              className={historyDeletingId === item.id ? 'history-row-deleting' : undefined}
+                            >
                               {historyColumns[historyModal.type].map((column) => (
                                 <td key={column.key}>{column.render(item)}</td>
                               ))}
@@ -2127,6 +2142,9 @@ export default function SiteDetail({
           </div>
           <p className="bulk-helper-text">
             {t('CSV columns: Date, Time, Depth to water (in meters), Comments.')}
+          </p>
+          <p className="bulk-helper-text">
+            {t('Yellow rows indicate a pump state inferred from comments.')}
           </p>
           {bulkOperatorError && <p className="form-error">{bulkOperatorError}</p>}
           {bulkImportNotice && <p className="bulk-import-notice">{bulkImportNotice}</p>}

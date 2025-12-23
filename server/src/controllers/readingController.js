@@ -4,6 +4,7 @@ import WellMeasurement from '../models/WellMeasurement.js';
 import { isAdmin, isFieldOperator } from '../middleware/auth.js';
 
 const normalizePumpState = (value) => (value === 'on' ? 'on' : 'off');
+const DEFAULT_PAGE_SIZE = Number.parseInt(process.env.TABLE_PAGE_SIZE, 10);
 
 const toUtcDate = (value) => {
   const parsed = value ? new Date(value) : new Date();
@@ -47,7 +48,8 @@ const parsePagination = (query) => {
   const limitValue = Number.parseInt(query.limit, 10);
 
   const page = Number.isNaN(pageValue) || pageValue < 1 ? 1 : pageValue;
-  const limitCandidate = Number.isNaN(limitValue) || limitValue < 1 ? 10 : limitValue;
+  const fallbackLimit = Number.isNaN(DEFAULT_PAGE_SIZE) || DEFAULT_PAGE_SIZE < 1 ? 20 : DEFAULT_PAGE_SIZE;
+  const limitCandidate = Number.isNaN(limitValue) || limitValue < 1 ? fallbackLimit : limitValue;
   const limit = Math.min(limitCandidate, 500);
 
   return { page, limit };

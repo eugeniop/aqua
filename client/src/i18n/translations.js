@@ -26,6 +26,8 @@ export const translations = {
     'Import CSV': 'Import CSV',
     'CSV columns: Date, Time, Depth to water (in meters), Comments.':
       'CSV columns: Date, Time, Depth to water (in meters), Comments.',
+    'Yellow rows indicate a pump state inferred from comments.':
+      'Yellow rows indicate a pump state inferred from comments.',
     'Imported the first {count} rows from the CSV.':
       'Imported the first {count} rows from the CSV.',
     'Imported {count} rows from the CSV.': 'Imported {count} rows from the CSV.',
@@ -152,6 +154,8 @@ export const translations = {
     'Import CSV': 'Ingiza CSV',
     'CSV columns: Date, Time, Depth to water (in meters), Comments.':
       'Safu za CSV: Tarehe, Saa, Kina cha maji (kwa mita), Maoni.',
+    'Yellow rows indicate a pump state inferred from comments.':
+      'Safu za njano zinaonyesha hali ya pampu iliyokadiriwa kutoka kwenye maoni.',
     'Imported the first {count} rows from the CSV.':
       'Imeingiza safu {count} za kwanza kutoka kwenye CSV.',
     'Imported {count} rows from the CSV.': 'Imeingiza safu {count} kutoka kwenye CSV.',
