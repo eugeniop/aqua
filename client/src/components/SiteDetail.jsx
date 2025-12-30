@@ -637,6 +637,24 @@ export default function SiteDetail({
     setHistoryDownloading(false);
   };
 
+  useEffect(() => {
+    if (!historyModal) {
+      return undefined;
+    }
+
+    const handlePopState = () => {
+      closeHistoryModal();
+    };
+
+    const currentState = window.history.state || {};
+    window.history.pushState({ ...currentState, historyModal: true }, '', window.location.href);
+    window.addEventListener('popstate', handlePopState);
+
+    return () => {
+      window.removeEventListener('popstate', handlePopState);
+    };
+  }, [historyModal]);
+
   const handleHistoryPrevious = () => {
     setHistoryPage((prev) => Math.max(1, prev - 1));
   };
