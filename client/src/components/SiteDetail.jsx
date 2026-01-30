@@ -401,7 +401,7 @@ export default function SiteDetail({
   const userRole = user?.role || '';
   const displayUserName = userName || 'Unknown operator';
   const canSelectBulkOperator = userRole === 'admin' || userRole === 'superadmin';
-  const defaultOperatorFilter = () => userName;
+  const defaultOperatorFilter = () => '';
 
   const [createModal, setCreateModal] = useState(null);
   const [createForm, setCreateForm] = useState({});
