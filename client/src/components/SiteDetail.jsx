@@ -158,6 +158,34 @@ const parseCsvText = (content) => {
   return rows.filter((entry) => entry.some((cell) => (cell || '').trim() !== ''));
 };
 
+const formatUtcDate = (value) => {
+  if (!value) {
+    return '';
+  }
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return '';
+  }
+  const month = String(date.getUTCMonth() + 1).padStart(2, '0');
+  const day = String(date.getUTCDate()).padStart(2, '0');
+  const year = String(date.getUTCFullYear());
+  return `${month}-${day}-${year}`;
+};
+
+const formatUtcTime = (value) => {
+  if (!value) {
+    return '';
+  }
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return '';
+  }
+  const hour = String(date.getUTCHours()).padStart(2, '0');
+  const minute = String(date.getUTCMinutes()).padStart(2, '0');
+  const second = String(date.getUTCSeconds()).padStart(2, '0');
+  return `${hour}:${minute}:${second}`;
+};
+
 const BULK_ROW_COUNT = 20;
 const defaultPumpState = 'off';
 
@@ -301,6 +329,11 @@ export default function SiteDetail({
     () => ({
       well: [
         {
+          key: 'recordedAt',
+          label: t('Recorded at'),
+          render: (item) => formatDateTime(item.recordedAt)
+        },
+        {
           key: 'depthToWater',
           label: t('Depth to water (m)'),
           render: (item) =>
@@ -315,11 +348,6 @@ export default function SiteDetail({
             }
             return item.pumpState === 'on' ? t('On') : t('Off');
           }
-        },
-        {
-          key: 'recordedAt',
-          label: t('Recorded at'),
-          render: (item) => formatDateTime(item.recordedAt)
         },
         { key: 'operator', label: t('Operator'), render: (item) => item.operator || '—' },
         {
@@ -827,7 +855,42 @@ export default function SiteDetail({
         return;
       }
 
-      const columns = historyColumns[historyModal.type] ?? [];
+      const wellCsvColumns = [
+        {
+          key: 'recordedAtDate',
+          label: t('Date'),
+          render: (item) => formatUtcDate(item.recordedAt)
+        },
+        {
+          key: 'recordedAtTime',
+          label: t('Time'),
+          render: (item) => formatUtcTime(item.recordedAt)
+        },
+        {
+          key: 'depthToWater',
+          label: t('Depth to water'),
+          render: (item) =>
+            item.depthToWater == null ? '—' : Number(item.depthToWater).toFixed(2)
+        },
+        {
+          key: 'pumpState',
+          label: t('Pump state'),
+          render: (item) => {
+            if (!item.pumpState) {
+              return '—';
+            }
+            return item.pumpState === 'on' ? t('On') : t('Off');
+          }
+        },
+        { key: 'operator', label: t('Operator'), render: (item) => item.operator || '—' },
+        {
+          key: 'comment',
+          label: t('Comments'),
+          render: (item) => (item.comment ? item.comment : '—')
+        }
+      ];
+
+      const columns = historyModal.type === 'well' ? wellCsvColumns : historyColumns[historyModal.type] ?? [];
       if (columns.length === 0) {
         setHistoryControlsError(t('No columns available for export.'));
         return;
