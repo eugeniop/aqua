@@ -157,6 +157,7 @@ export default function UserManagement({
                     <th>{t('Time zone')}</th>
                     <th>{t('Status')}</th>
                     <th>{t('Added')}</th>
+                    <th>{t('Last login')}</th>
                     <th>{t('Actions')}</th>
                   </tr>
                 </thead>
@@ -215,6 +216,7 @@ export default function UserManagement({
                         </span>
                       </td>
                       <td>{formatDateTime(user.createdAt)}</td>
+                      <td>{user.lastLoginAt ? formatDateTime(user.lastLoginAt) : '—'}</td>
                       <td>{renderActions(user)}</td>
                     </tr>
                   ))}

@@ -191,6 +191,17 @@ export const requireAuth = async (req, res, next) => {
       });
     }
 
+    const issuedAtSeconds = Number(payload.iat);
+    const issuedAt = Number.isFinite(issuedAtSeconds) ? new Date(issuedAtSeconds * 1000) : null;
+    const shouldUpdateLastLogin =
+      (issuedAt && (!user.lastLoginAt || issuedAt > user.lastLoginAt)) ||
+      (!issuedAt && !user.lastLoginAt);
+
+    if (shouldUpdateLastLogin) {
+      user.lastLoginAt = issuedAt || new Date();
+      await user.save();
+    }
+
     req.user = {
       id: user._id.toString(),
       role,

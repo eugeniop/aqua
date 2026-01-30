@@ -9,7 +9,8 @@ const formatUser = (user) => ({
   preferredTimeZone: user.preferredTimeZone || DEFAULT_TIME_ZONE,
   role: user.role || '',
   enabled: user.enabled,
-  createdAt: user.createdAt
+  createdAt: user.createdAt,
+  lastLoginAt: user.lastLoginAt
 });
 
 const isValidEmail = (email) => /.+@.+\..+/.test(email);
