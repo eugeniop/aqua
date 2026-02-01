@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useTranslation } from '../i18n/LocalizationProvider.jsx';
 import './HistoryChart.css';
 
@@ -51,6 +51,7 @@ export default function HistoryChart({
   invertYAxis = false
 }) {
   const { t, formatDateTime } = useTranslation();
+  const [hoveredPoint, setHoveredPoint] = useState(null);
   const prepared = useMemo(() => {
     const parsed = (data || [])
       .map((item) => {
@@ -117,94 +118,134 @@ export default function HistoryChart({
 
   const xTicks = buildTicks(minTime, maxTime, Math.min(TICK_COUNT, prepared.parsed.length));
   const yTicks = buildTicks(minValue, maxValue, TICK_COUNT);
+  const tooltipPosition = hoveredPoint
+    ? {
+        left: `${(hoveredPoint.cx / width) * 100}%`,
+        top: `${(hoveredPoint.cy / height) * 100}%`
+      }
+    : null;
 
   return (
     <div className="history-chart">
-      <svg viewBox={`0 0 ${width} ${height}`} role="img" aria-label={t('History chart data')}>
-        <rect
-          x={PADDING.left}
-          y={PADDING.top}
-          width={innerWidth}
-          height={innerHeight}
-          fill="#f8fafc"
-          stroke="#d0d7f5"
-          strokeWidth="1"
-        />
-        {yTicks.map((tickValue) => {
-          const y = scaleY(tickValue);
-          return (
-            <g key={`y-${tickValue}`}>
-              <line
-                x1={PADDING.left}
-                x2={PADDING.left + innerWidth}
-                y1={y}
-                y2={y}
-                stroke="#e2e8f0"
-                strokeWidth="1"
-              />
-              <text
-                x={PADDING.left - 8}
-                y={y + 4}
-                textAnchor="end"
-                fontSize="12"
-                fill="#475569"
-              >
-                {Number(tickValue.toFixed(2))}
-              </text>
-            </g>
-          );
-        })}
-        {xTicks.map((tickValue) => {
-          const x = scaleX(tickValue);
-          return (
-            <g key={`x-${tickValue}`}>
-              <line
-                x1={x}
-                x2={x}
-                y1={PADDING.top}
-                y2={PADDING.top + innerHeight}
-                stroke="#e2e8f0"
-                strokeWidth="1"
-                strokeDasharray="4 4"
-              />
-              <text
-                x={x}
-                y={PADDING.top + innerHeight + 20}
-                textAnchor="middle"
-                fontSize="12"
-                fill="#475569"
-              >
-                {formatDateTime(tickValue)}
-              </text>
-            </g>
-          );
-        })}
-        {prepared.seriesWithPoints.map((serie) => {
-          const path = buildPath(
-            serie.points.map((point) => ({
-              time: point.time,
-              value: point.value
-            })),
-            scaleX,
-            scaleY
-          );
-          return (
-            <g key={serie.key}>
-              <path d={path} fill="none" stroke={serie.color} strokeWidth="2" />
-              {serie.points.map((point, index) => {
-                const cx = scaleX(point.time);
-                const cy = scaleY(point.value);
-                return (
-                  <g key={`${serie.key}-${point.time}-${index}`}>
-                    <circle cx={cx} cy={cy} r="3.5" fill={serie.color} />
-                    <title>{`${serie.label}: ${point.value.toFixed(2)}\n${formatDateTime(point.recordedAt)}`}</title>
-                  </g>
-                );
-              })}
-            </g>
-          );
-        })}
-      </svg>
+      <div className="history-chart-canvas">
+        <svg
+          viewBox={`0 0 ${width} ${height}`}
+          role="img"
+          aria-label={t('History chart data')}
+          onMouseLeave={() => setHoveredPoint(null)}
+        >
+          <rect
+            x={PADDING.left}
+            y={PADDING.top}
+            width={innerWidth}
+            height={innerHeight}
+            fill="#f8fafc"
+            stroke="#d0d7f5"
+            strokeWidth="1"
+          />
+          {yTicks.map((tickValue) => {
+            const y = scaleY(tickValue);
+            return (
+              <g key={`y-${tickValue}`}>
+                <line
+                  x1={PADDING.left}
+                  x2={PADDING.left + innerWidth}
+                  y1={y}
+                  y2={y}
+                  stroke="#e2e8f0"
+                  strokeWidth="1"
+                />
+                <text
+                  x={PADDING.left - 8}
+                  y={y + 4}
+                  textAnchor="end"
+                  fontSize="12"
+                  fill="#475569"
+                >
+                  {Number(tickValue.toFixed(2))}
+                </text>
+              </g>
+            );
+          })}
+          {xTicks.map((tickValue) => {
+            const x = scaleX(tickValue);
+            return (
+              <g key={`x-${tickValue}`}>
+                <line
+                  x1={x}
+                  x2={x}
+                  y1={PADDING.top}
+                  y2={PADDING.top + innerHeight}
+                  stroke="#e2e8f0"
+                  strokeWidth="1"
+                  strokeDasharray="4 4"
+                />
+                <text
+                  x={x}
+                  y={PADDING.top + innerHeight + 20}
+                  textAnchor="middle"
+                  fontSize="12"
+                  fill="#475569"
+                >
+                  {formatDateTime(tickValue)}
+                </text>
+              </g>
+            );
+          })}
+          {prepared.seriesWithPoints.map((serie) => {
+            const path = buildPath(
+              serie.points.map((point) => ({
+                time: point.time,
+                value: point.value
+              })),
+              scaleX,
+              scaleY
+            );
+            return (
+              <g key={serie.key}>
+                <path d={path} fill="none" stroke={serie.color} strokeWidth="2" />
+                {serie.points.map((point, index) => {
+                  const cx = scaleX(point.time);
+                  const cy = scaleY(point.value);
+                  return (
+                    <g key={`${serie.key}-${point.time}-${index}`}>
+                      <circle
+                        cx={cx}
+                        cy={cy}
+                        r="3.5"
+                        fill={serie.color}
+                        onMouseEnter={() =>
+                          setHoveredPoint({
+                            cx,
+                            cy,
+                            label: serie.label,
+                            value: point.value,
+                            recordedAt: point.recordedAt
+                          })
+                        }
+                      />
+                      <title>{`${serie.label}: ${point.value.toFixed(2)}\n${formatDateTime(
+                        point.recordedAt
+                      )}`}</title>
+                    </g>
+                  );
+                })}
+              </g>
+            );
+          })}
+        </svg>
+        {hoveredPoint ? (
+          <div className="history-chart-tooltip" style={tooltipPosition}>
+            <div className="history-chart-tooltip-label">{hoveredPoint.label}</div>
+            <div className="history-chart-tooltip-value">
+              {hoveredPoint.value.toFixed(2)}
+            </div>
+            <div className="history-chart-tooltip-time">
+              {formatDateTime(hoveredPoint.recordedAt)}
+            </div>
+          </div>
+        ) : null}
+      </div>
       <div className="history-chart-legend">
         {prepared.seriesWithPoints.map((serie) => (
           <div key={serie.key} className="history-chart-legend-item">
