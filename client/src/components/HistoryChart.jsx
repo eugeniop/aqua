@@ -76,12 +76,15 @@ export default function HistoryChart({
           if (Number.isNaN(value)) {
             return null;
           }
+          const pumpState =
+            typeof entry.raw.pumpState === 'string' ? entry.raw.pumpState.toLowerCase() : entry.raw.pumpState;
           return {
             time: entry.time,
             value,
             recordedAt: entry.raw.recordedAt,
             label: serie.label,
-            original: rawValue
+            original: rawValue,
+            pumpState
           };
         })
         .filter(Boolean)
@@ -193,17 +196,48 @@ export default function HistoryChart({
             );
           })}
           {prepared.seriesWithPoints.map((serie) => {
-            const path = buildPath(
-              serie.points.map((point) => ({
-                time: point.time,
-                value: point.value
-              })),
-              scaleX,
-              scaleY
-            );
+            const getPointColor = (point) => (serie.getPointColor ? serie.getPointColor(point) : serie.color);
+            const segments = [];
+            let currentSegment = [];
+            let currentColor = null;
+            serie.points.forEach((point) => {
+              const color = getPointColor(point);
+              if (!currentSegment.length || color === currentColor) {
+                currentSegment.push(point);
+                currentColor = color;
+                return;
+              }
+              segments.push({ color: currentColor, points: currentSegment });
+              currentSegment = [point];
+              currentColor = color;
+            });
+            if (currentSegment.length) {
+              segments.push({ color: currentColor, points: currentSegment });
+            }
+
             return (
               <g key={serie.key}>
-                <path d={path} fill="none" stroke={serie.color} strokeWidth="2" />
+                {segments.map((segment, segmentIndex) => {
+                  if (segment.points.length < 2) {
+                    return null;
+                  }
+                  return (
+                    <path
+                      key={`${serie.key}-segment-${segmentIndex}`}
+                      d={buildPath(
+                        segment.points.map((point) => ({
+                          time: point.time,
+                          value: point.value
+                        })),
+                        scaleX,
+                        scaleY
+                      )}
+                      fill="none"
+                      stroke={segment.color}
+                      strokeWidth="2"
+                    />
+                  );
+                })}
                 {serie.points.map((point, index) => {
                   const cx = scaleX(point.time);
                   const cy = scaleY(point.value);
@@ -213,7 +247,7 @@ export default function HistoryChart({
                         cx={cx}
                         cy={cy}
                         r="3.5"
-                        fill={serie.color}
+                        fill={getPointColor(point)}
                         onMouseEnter={() =>
                           setHoveredPoint({
                             cx,
