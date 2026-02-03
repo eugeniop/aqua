@@ -6,6 +6,7 @@ const PADDING = { top: 16, right: 24, bottom: 40, left: 56 };
 const HEIGHT = 280;
 const WIDTH = 720;
 const TICK_COUNT = 4;
+const TRANSITION_LINE_COLOR = '#facc15';
 
 const buildPath = (points, scaleX, scaleY) => {
   if (!points.length) {
@@ -197,43 +198,27 @@ export default function HistoryChart({
           })}
           {prepared.seriesWithPoints.map((serie) => {
             const getPointColor = (point) => (serie.getPointColor ? serie.getPointColor(point) : serie.color);
-            const segments = [];
-            let currentSegment = [];
-            let currentColor = null;
-            serie.points.forEach((point) => {
-              const color = getPointColor(point);
-              if (!currentSegment.length || color === currentColor) {
-                currentSegment.push(point);
-                currentColor = color;
-                return;
-              }
-              segments.push({ color: currentColor, points: currentSegment });
-              currentSegment = [point];
-              currentColor = color;
-            });
-            if (currentSegment.length) {
-              segments.push({ color: currentColor, points: currentSegment });
-            }
 
             return (
               <g key={serie.key}>
-                {segments.map((segment, segmentIndex) => {
-                  if (segment.points.length < 2) {
-                    return null;
-                  }
+                {serie.points.slice(1).map((point, index) => {
+                  const previousPoint = serie.points[index];
+                  const hasPumpTransition =
+                    previousPoint.pumpState && point.pumpState && previousPoint.pumpState !== point.pumpState;
+                  const lineColor = hasPumpTransition ? TRANSITION_LINE_COLOR : getPointColor(point);
                   return (
                     <path
-                      key={`${serie.key}-segment-${segmentIndex}`}
+                      key={`${serie.key}-segment-${index}`}
                       d={buildPath(
-                        segment.points.map((point) => ({
-                          time: point.time,
-                          value: point.value
+                        [previousPoint, point].map((segmentPoint) => ({
+                          time: segmentPoint.time,
+                          value: segmentPoint.value
                         })),
                         scaleX,
                         scaleY
                       )}
                       fill="none"
-                      stroke={segment.color}
+                      stroke={lineColor}
                       strokeWidth="2"
                     />
                   );
@@ -241,6 +226,11 @@ export default function HistoryChart({
                 {serie.points.map((point, index) => {
                   const cx = scaleX(point.time);
                   const cy = scaleY(point.value);
+                  const pumpStateLabel =
+                    point.pumpState === 'on' ? t('On') : point.pumpState === 'off' ? t('Off') : null;
+                  const tooltipPumpState = pumpStateLabel
+                    ? t('Pump state: {state}', { state: pumpStateLabel })
+                    : null;
                   return (
                     <g key={`${serie.key}-${point.time}-${index}`}>
                       <circle
@@ -254,13 +244,20 @@ export default function HistoryChart({
                             cy,
                             label: serie.label,
                             value: point.value,
-                            recordedAt: point.recordedAt
+                            recordedAt: point.recordedAt,
+                            pumpState: tooltipPumpState
                           })
                         }
                       />
-                      <title>{`${serie.label}: ${point.value.toFixed(2)}\n${formatDateTime(
-                        point.recordedAt
-                      )}`}</title>
+                      <title>
+                        {[
+                          `${serie.label}: ${point.value.toFixed(2)}`,
+                          formatDateTime(point.recordedAt),
+                          tooltipPumpState
+                        ]
+                          .filter(Boolean)
+                          .join('\n')}
+                      </title>
                     </g>
                   );
                 })}
@@ -277,6 +274,9 @@ export default function HistoryChart({
             <div className="history-chart-tooltip-time">
               {formatDateTime(hoveredPoint.recordedAt)}
             </div>
+            {hoveredPoint.pumpState ? (
+              <div className="history-chart-tooltip-pump">{hoveredPoint.pumpState}</div>
+            ) : null}
           </div>
         ) : null}
       </div>
