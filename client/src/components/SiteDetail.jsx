@@ -416,7 +416,14 @@ export default function SiteDetail({
 
   const historyChartSeries = useMemo(
     () => ({
-      well: [{ key: 'depthToWater', label: t('Depth to water (m)'), color: '#f97316' }],
+      well: [
+        {
+          key: 'depthToWater',
+          label: t('Depth to water (m)'),
+          color: '#1e40af',
+          getPointColor: (point) => (point.pumpState === 'on' ? '#7dd3fc' : '#1e40af')
+        }
+      ],
       tank: [{ key: 'level', label: t('Level (L)'), color: '#16a34a' }],
       flowmeter: [
         { key: 'instantaneousFlow', label: t('Instantaneous flow (L/min)'), color: '#0ea5e9' },
