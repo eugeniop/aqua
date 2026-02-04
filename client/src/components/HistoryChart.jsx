@@ -49,7 +49,8 @@ export default function HistoryChart({
   series = [],
   width = WIDTH,
   height = HEIGHT,
-  invertYAxis = false
+  invertYAxis = false,
+  onPointClick
 }) {
   const { t, formatDateTime } = useTranslation();
   const [hoveredPoint, setHoveredPoint] = useState(null);
@@ -238,6 +239,7 @@ export default function HistoryChart({
                         cy={cy}
                         r="3.5"
                         fill={getPointColor(point)}
+                        className={onPointClick ? 'history-chart-point' : undefined}
                         onMouseEnter={() =>
                           setHoveredPoint({
                             cx,
@@ -248,6 +250,7 @@ export default function HistoryChart({
                             pumpState: tooltipPumpState
                           })
                         }
+                        onClick={() => onPointClick?.(point)}
                       />
                       <title>
                         {[
