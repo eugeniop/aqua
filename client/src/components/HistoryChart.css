@@ -15,6 +15,10 @@
   box-shadow: inset 0 0 0 1px #e2e8f0;
 }
 
+.history-chart-point {
+  cursor: pointer;
+}
+
 .history-chart-legend {
   display: flex;
   gap: 1rem;

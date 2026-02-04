@@ -1005,6 +1005,19 @@ export default function SiteDetail({
     setChartForm((prev) => ({ ...prev, [field]: value }));
   };
 
+  const handleChartPointSelect = (point) => {
+    const formatted = formatDateTimeInput(point.recordedAt || point.time, timeZone);
+    if (!formatted) {
+      return;
+    }
+    setChartForm((prev) => {
+      if (!prev.from || (prev.from && prev.to)) {
+        return { ...prev, from: formatted, to: '' };
+      }
+      return { ...prev, to: formatted };
+    });
+  };
+
   const handleChartSubmit = async (event) => {
     event.preventDefault();
     await loadChartData();
@@ -2019,6 +2032,7 @@ export default function SiteDetail({
                     data={chartState.items}
                     series={historyChartSeries[historyModal.type] || []}
                     invertYAxis={historyModal.type === 'well'}
+                    onPointClick={handleChartPointSelect}
                   />
                 )}
               </div>
