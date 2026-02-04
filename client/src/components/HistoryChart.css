@@ -68,6 +68,10 @@
   opacity: 0.85;
 }
 
+.history-chart-tooltip-rate {
+  opacity: 0.9;
+}
+
 .history-chart-empty {
   display: grid;
   place-items: center;

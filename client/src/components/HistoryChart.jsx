@@ -44,6 +44,35 @@ const buildTicks = (start, end, count) => {
   return Array.from({ length: count }, (_, index) => start + (span * index) / (count - 1));
 };
 
+const computeRatePerMinute = (points, index) => {
+  if (!points || points.length < 2) {
+    return null;
+  }
+
+  const isFirst = index === 0;
+  const isLast = index === points.length - 1;
+  const startIndex = isFirst ? 0 : isLast ? points.length - 2 : index - 1;
+  const endIndex = isFirst ? Math.min(1, points.length - 1) : isLast ? points.length - 1 : index + 1;
+  const sample = points
+    .slice(startIndex, endIndex + 1)
+    .map((point) => ({ x: point.time / 60000, y: point.value }));
+
+  if (sample.length < 2) {
+    return null;
+  }
+
+  const meanX = sample.reduce((sum, item) => sum + item.x, 0) / sample.length;
+  const meanY = sample.reduce((sum, item) => sum + item.y, 0) / sample.length;
+  const numerator = sample.reduce((sum, item) => sum + (item.x - meanX) * (item.y - meanY), 0);
+  const denominator = sample.reduce((sum, item) => sum + (item.x - meanX) ** 2, 0);
+
+  if (denominator === 0) {
+    return null;
+  }
+
+  return numerator / denominator;
+};
+
 export default function HistoryChart({
   data,
   series = [],
@@ -232,6 +261,9 @@ export default function HistoryChart({
                   const tooltipPumpState = pumpStateLabel
                     ? t('Pump state: {state}', { state: pumpStateLabel })
                     : null;
+                  const rate = computeRatePerMinute(serie.points, index);
+                  const tooltipRate =
+                    rate == null ? null : t('Rate: {rate} m/min', { rate: rate.toFixed(2) });
                   return (
                     <g key={`${serie.key}-${point.time}-${index}`}>
                       <circle
@@ -247,7 +279,8 @@ export default function HistoryChart({
                             label: serie.label,
                             value: point.value,
                             recordedAt: point.recordedAt,
-                            pumpState: tooltipPumpState
+                            pumpState: tooltipPumpState,
+                            rate: tooltipRate
                           })
                         }
                         onClick={() => onPointClick?.(point)}
@@ -256,7 +289,8 @@ export default function HistoryChart({
                         {[
                           `${serie.label}: ${point.value.toFixed(2)}`,
                           formatDateTime(point.recordedAt),
-                          tooltipPumpState
+                          tooltipPumpState,
+                          tooltipRate
                         ]
                           .filter(Boolean)
                           .join('\n')}
@@ -277,6 +311,7 @@ export default function HistoryChart({
             <div className="history-chart-tooltip-time">
               {formatDateTime(hoveredPoint.recordedAt)}
             </div>
+            {hoveredPoint.rate ? <div className="history-chart-tooltip-rate">{hoveredPoint.rate}</div> : null}
             {hoveredPoint.pumpState ? (
               <div className="history-chart-tooltip-pump">{hoveredPoint.pumpState}</div>
             ) : null}
