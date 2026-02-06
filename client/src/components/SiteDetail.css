@@ -74,6 +74,43 @@
   gap: 0.75rem;
 }
 
+.feature-summary-header {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.feature-groups {
+  display: grid;
+  gap: 1.5rem;
+}
+
+.feature-group {
+  display: grid;
+  gap: 1rem;
+}
+
+.feature-group-header {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.feature-group-header h3 {
+  margin: 0;
+  font-size: 1.1rem;
+}
+
+.feature-group-count {
+  margin: 0.25rem 0 0;
+  color: #6b7280;
+  font-size: 0.9rem;
+}
+
 .feature-filters {
   display: flex;
   flex-wrap: wrap;
@@ -461,6 +498,44 @@
   border-radius: 8px;
   padding: 0.4rem 0.5rem;
   font-size: 0.95rem;
+}
+
+.well-analysis-controls {
+  display: grid;
+  gap: 1rem;
+}
+
+.well-analysis-toggles {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.well-toggle {
+  border: 1px solid #d1d5db;
+  border-radius: 999px;
+  background: #ffffff;
+  color: #1f2937;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.35rem 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+}
+
+.well-toggle.active {
+  background: #111827;
+  border-color: #111827;
+  color: #ffffff;
+}
+
+.well-toggle-swatch {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  display: inline-block;
 }
 
 .history-chart-buttons {
