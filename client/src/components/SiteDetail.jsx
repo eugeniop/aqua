@@ -229,6 +229,19 @@ const historyFetchers = {
   flowmeter: getFlowmeterReadings
 };
 
+const WELL_SERIES_COLORS = [
+  '#1d4ed8',
+  '#0f766e',
+  '#ca8a04',
+  '#dc2626',
+  '#7c3aed',
+  '#0ea5e9',
+  '#9333ea',
+  '#059669',
+  '#f97316',
+  '#3b82f6'
+];
+
 const initialHistoryState = {
   loading: false,
   error: '',
@@ -461,6 +474,11 @@ export default function SiteDetail({
   const [bulkOperatorError, setBulkOperatorError] = useState('');
   const [bulkImportNotice, setBulkImportNotice] = useState('');
 
+  const [wellAnalysisOpen, setWellAnalysisOpen] = useState(false);
+  const [wellAnalysisForm, setWellAnalysisForm] = useState({ from: '', to: '' });
+  const [wellAnalysisState, setWellAnalysisState] = useState({ loading: false, error: '', items: [] });
+  const [wellAnalysisVisibility, setWellAnalysisVisibility] = useState({});
+
   const [visibleTypes, setVisibleTypes] = useState(() => ({ ...defaultVisibleTypes }));
   const [historyModal, setHistoryModal] = useState(null);
   const [historyPage, setHistoryPage] = useState(1);
@@ -544,6 +562,10 @@ export default function SiteDetail({
     setHistoryFilters({ from: '', to: '', operator: defaultOperatorFilter() });
     setHistoryControlsError('');
     setHistoryDownloading(false);
+    setWellAnalysisOpen(false);
+    setWellAnalysisForm({ from: '', to: '' });
+    setWellAnalysisState({ loading: false, error: '', items: [] });
+    setWellAnalysisVisibility({});
   }, [site?.id]);
 
   const features = useMemo(() => {
@@ -570,6 +592,22 @@ export default function SiteDetail({
   const filteredFeatures = useMemo(
     () => features.filter((feature) => visibleTypes[feature.type]),
     [features, visibleTypes]
+  );
+
+  const wellSeries = useMemo(() => {
+    if (!site?.wells?.length) {
+      return [];
+    }
+    return site.wells.map((well, index) => ({
+      key: `well-${well.id}`,
+      label: well.name,
+      color: WELL_SERIES_COLORS[index % WELL_SERIES_COLORS.length]
+    }));
+  }, [site]);
+
+  const visibleWellSeries = useMemo(
+    () => wellSeries.filter((serie) => wellAnalysisVisibility[serie.key] !== false),
+    [wellAnalysisVisibility, wellSeries]
   );
 
   useEffect(() => {
@@ -1038,6 +1076,101 @@ export default function SiteDetail({
     setHistoryView('table');
     setHistoryControlsError('');
   };
+
+  const openWellAnalysis = () => {
+    if (!site?.wells?.length) {
+      return;
+    }
+    const visibility = site.wells.reduce((acc, well) => {
+      acc[`well-${well.id}`] = true;
+      return acc;
+    }, {});
+    setWellAnalysisVisibility(visibility);
+    setWellAnalysisForm({ from: '', to: '' });
+    setWellAnalysisState({ loading: false, error: '', items: [] });
+    setWellAnalysisOpen(true);
+  };
+
+  const closeWellAnalysis = () => {
+    setWellAnalysisOpen(false);
+    setWellAnalysisForm({ from: '', to: '' });
+    setWellAnalysisState({ loading: false, error: '', items: [] });
+    setWellAnalysisVisibility({});
+  };
+
+  const handleWellAnalysisFormChange = (field) => (event) => {
+    const { value } = event.target;
+    setWellAnalysisForm((prev) => ({ ...prev, [field]: value }));
+  };
+
+  const toggleWellSeriesVisibility = (seriesKey) => {
+    setWellAnalysisVisibility((prev) => ({ ...prev, [seriesKey]: !prev[seriesKey] }));
+  };
+
+  const loadWellAnalysisData = async (overrides = {}) => {
+    if (!site?.wells?.length) {
+      return;
+    }
+    const fromValue = overrides.from ?? wellAnalysisForm.from;
+    const toValue = overrides.to ?? wellAnalysisForm.to;
+    setWellAnalysisState((prev) => ({ ...prev, loading: true, error: '' }));
+
+    try {
+      const params = { page: 1, limit: 500, order: 'asc' };
+      if (fromValue) {
+        const fromDate = parseDateTimeInTimeZone(fromValue, timeZone);
+        if (fromDate && !Number.isNaN(fromDate.getTime())) {
+          params.from = fromDate.toISOString();
+        }
+      }
+      if (toValue) {
+        const toDate = parseDateTimeInTimeZone(toValue, timeZone);
+        if (toDate && !Number.isNaN(toDate.getTime())) {
+          params.to = toDate.toISOString();
+        }
+      }
+
+      const results = await Promise.all(
+        site.wells.map(async (well) => {
+          const result = await getWellMeasurements(well.id, params);
+          return { well, items: result.items ?? [] };
+        })
+      );
+
+      const combinedItems = results.flatMap(({ well, items }) =>
+        items.map((item) => ({
+          recordedAt: item.recordedAt,
+          pumpState: item.pumpState,
+          [`well-${well.id}`]: item.depthToWater
+        }))
+      );
+
+      setWellAnalysisState({ loading: false, error: '', items: combinedItems });
+    } catch (error) {
+      setWellAnalysisState({
+        loading: false,
+        error: error.message || t('Unable to load well analysis data'),
+        items: []
+      });
+    }
+  };
+
+  const handleWellAnalysisSubmit = async (event) => {
+    event.preventDefault();
+    await loadWellAnalysisData();
+  };
+
+  const handleWellAnalysisReset = async () => {
+    setWellAnalysisForm({ from: '', to: '' });
+    await loadWellAnalysisData({ from: '', to: '' });
+  };
+
+  useEffect(() => {
+    if (!wellAnalysisOpen) {
+      return;
+    }
+    loadWellAnalysisData();
+  }, [wellAnalysisOpen]);
 
   if (!site) {
     return (
@@ -1897,75 +2030,214 @@ export default function SiteDetail({
       </section>
 
       <section className="feature-summary">
-        <h2>{t('Feature summary')}</h2>
-        {features.length > 0 && (
-          <div className="feature-filters" role="group" aria-label={t('Filter feature cards by type')}>
-            {Object.entries(filterLabels).map(([type, label]) => {
-              const active = visibleTypes[type];
-              return (
-                <button
-                  key={type}
-                  type="button"
-                  className={`filter-button${active ? ' active' : ''}`}
-                  onClick={() => toggleType(type)}
-                  aria-pressed={active}
-                >
-                  {label}
-                </button>
-              );
-            })}
-          </div>
-        )}
+        <div className="feature-summary-header">
+          <h2>{t('Feature summary')}</h2>
+          {features.length > 0 && (
+            <div className="feature-filters" role="group" aria-label={t('Filter feature cards by type')}>
+              {Object.entries(filterLabels).map(([type, label]) => {
+                const active = visibleTypes[type];
+                return (
+                  <button
+                    key={type}
+                    type="button"
+                    className={`filter-button${active ? ' active' : ''}`}
+                    onClick={() => toggleType(type)}
+                    aria-pressed={active}
+                  >
+                    {label}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </div>
         {features.length === 0 ? (
           <p className="empty">{t('No features recorded for this site yet.')}</p>
         ) : filteredFeatures.length === 0 ? (
           <p className="empty">{t('No features match the selected filters.')}</p>
         ) : (
-          <div className="asset-grid">
-            {filteredFeatures.map((feature) => {
-              if (feature.type === 'well') {
-                return (
-                  <WellCard
-                    key={`well-${feature.data.id}`}
-                    well={feature.data}
-                    onViewHistory={(well) => openHistoryModal('well', well)}
-                    onAddMeasurement={
-                      canRecordMeasurements ? (well) => openRecordModal('well', well) : undefined
-                    }
-                    onAddBulkMeasurement={
-                      canRecordMeasurements ? (well) => openBulkWellModal(well) : undefined
-                    }
-                  />
-                );
-              }
-              if (feature.type === 'tank') {
-                return (
-                  <TankCard
-                    key={`tank-${feature.data.id}`}
-                    tank={feature.data}
-                    onViewHistory={(tank) => openHistoryModal('tank', tank)}
-                    onAddReading={
-                      canRecordMeasurements ? (tank) => openRecordModal('tank', tank) : undefined
-                    }
-                  />
-                );
-              }
-              return (
-                <FlowmeterCard
-                  key={`flowmeter-${feature.data.id}`}
-                  flowmeter={feature.data}
-                  onViewHistory={(flowmeter) => openHistoryModal('flowmeter', flowmeter)}
-                  onAddReading={
-                    canRecordMeasurements
-                      ? (flowmeter) => openRecordModal('flowmeter', flowmeter)
-                      : undefined
-                  }
-                />
-              );
-            })}
+          <div className="feature-groups">
+            {visibleTypes.well && (
+              <div className="feature-group">
+                <div className="feature-group-header">
+                  <div>
+                    <h3>{t('Wells')}</h3>
+                    <p className="feature-group-count">
+                      {t('{count} wells', { count: site.wells.length })}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    className="secondary"
+                    onClick={openWellAnalysis}
+                    disabled={site.wells.length === 0}
+                  >
+                    {t('Analyze')}
+                  </button>
+                </div>
+                {site.wells.length === 0 ? (
+                  <p className="empty">{t('No wells recorded for this site yet.')}</p>
+                ) : (
+                  <div className="asset-grid">
+                    {site.wells.map((well) => (
+                      <WellCard
+                        key={`well-${well.id}`}
+                        well={well}
+                        onViewHistory={(target) => openHistoryModal('well', target)}
+                        onAddMeasurement={
+                          canRecordMeasurements ? (target) => openRecordModal('well', target) : undefined
+                        }
+                        onAddBulkMeasurement={
+                          canRecordMeasurements ? (target) => openBulkWellModal(target) : undefined
+                        }
+                      />
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+            {visibleTypes.tank && (
+              <div className="feature-group">
+                <div className="feature-group-header">
+                  <div>
+                    <h3>{t('Tanks')}</h3>
+                    <p className="feature-group-count">
+                      {t('{count} tanks', { count: site.tanks.length })}
+                    </p>
+                  </div>
+                </div>
+                {site.tanks.length === 0 ? (
+                  <p className="empty">{t('No tanks recorded for this site yet.')}</p>
+                ) : (
+                  <div className="asset-grid">
+                    {site.tanks.map((tank) => (
+                      <TankCard
+                        key={`tank-${tank.id}`}
+                        tank={tank}
+                        onViewHistory={(target) => openHistoryModal('tank', target)}
+                        onAddReading={
+                          canRecordMeasurements ? (target) => openRecordModal('tank', target) : undefined
+                        }
+                      />
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+            {visibleTypes.flowmeter && (
+              <div className="feature-group">
+                <div className="feature-group-header">
+                  <div>
+                    <h3>{t('Flowmeters')}</h3>
+                    <p className="feature-group-count">
+                      {t('{count} flowmeters', { count: site.flowmeters.length })}
+                    </p>
+                  </div>
+                </div>
+                {site.flowmeters.length === 0 ? (
+                  <p className="empty">{t('No flowmeters recorded for this site yet.')}</p>
+                ) : (
+                  <div className="asset-grid">
+                    {site.flowmeters.map((flowmeter) => (
+                      <FlowmeterCard
+                        key={`flowmeter-${flowmeter.id}`}
+                        flowmeter={flowmeter}
+                        onViewHistory={(target) => openHistoryModal('flowmeter', target)}
+                        onAddReading={
+                          canRecordMeasurements
+                            ? (target) => openRecordModal('flowmeter', target)
+                            : undefined
+                        }
+                      />
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         )}
       </section>
+
+      {wellAnalysisOpen && (
+        <div className="history-fullscreen" role="dialog" aria-modal="true">
+          <div className="history-fullscreen-header">
+            <div>
+              <h2>{t('Well analysis')}</h2>
+              <p className="history-fullscreen-subtitle">
+                {t('Compare well measurements across the site.')}
+              </p>
+            </div>
+            <div className="history-fullscreen-actions">
+              <button type="button" className="history-close-button" onClick={closeWellAnalysis}>
+                {t('Close')}
+              </button>
+            </div>
+          </div>
+          <div className="history-fullscreen-body">
+            <div className="well-analysis-controls">
+              <form className="history-chart-controls" onSubmit={handleWellAnalysisSubmit}>
+                <label>
+                  {t('From')}
+                  <input
+                    type="datetime-local"
+                    value={wellAnalysisForm.from}
+                    onChange={handleWellAnalysisFormChange('from')}
+                  />
+                </label>
+                <label>
+                  {t('To')}
+                  <input
+                    type="datetime-local"
+                    value={wellAnalysisForm.to}
+                    onChange={handleWellAnalysisFormChange('to')}
+                  />
+                </label>
+                <div className="history-chart-buttons">
+                  <button type="submit" disabled={wellAnalysisState.loading}>
+                    {wellAnalysisState.loading ? t('Loading data…') : t('Apply')}
+                  </button>
+                  <button
+                    type="button"
+                    className="secondary"
+                    onClick={handleWellAnalysisReset}
+                    disabled={wellAnalysisState.loading}
+                  >
+                    {t('Reset')}
+                  </button>
+                </div>
+              </form>
+              <div className="well-analysis-toggles">
+                {wellSeries.map((serie) => {
+                  const isVisible = wellAnalysisVisibility[serie.key] !== false;
+                  return (
+                    <button
+                      key={serie.key}
+                      type="button"
+                      className={`well-toggle${isVisible ? ' active' : ''}`}
+                      onClick={() => toggleWellSeriesVisibility(serie.key)}
+                      aria-pressed={isVisible}
+                    >
+                      <span className="well-toggle-swatch" style={{ background: serie.color }} />
+                      {serie.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+            {wellAnalysisState.error ? (
+              <p className="form-error">{wellAnalysisState.error}</p>
+            ) : wellAnalysisState.loading && wellAnalysisState.items.length === 0 ? (
+              <p className="history-status">{t('Loading data…')}</p>
+            ) : (
+              <HistoryChart
+                data={wellAnalysisState.items}
+                series={visibleWellSeries}
+                invertYAxis
+              />
+            )}
+          </div>
+        </div>
+      )}
 
       {historyModal && (
         <div className="history-fullscreen" role="dialog" aria-modal="true">
