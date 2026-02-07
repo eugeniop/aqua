@@ -1048,9 +1048,20 @@ export default function SiteDetail({
     if (!formatted) {
       return;
     }
+    const selectedDate = parseDateTimeInTimeZone(formatted, timeZone);
     setChartForm((prev) => {
       if (!prev.from || (prev.from && prev.to)) {
         return { ...prev, from: formatted, to: '' };
+      }
+      const fromDate = parseDateTimeInTimeZone(prev.from, timeZone);
+      if (
+        selectedDate &&
+        fromDate &&
+        !Number.isNaN(selectedDate.getTime()) &&
+        !Number.isNaN(fromDate.getTime()) &&
+        selectedDate < fromDate
+      ) {
+        return { ...prev, from: formatted, to: prev.from };
       }
       return { ...prev, to: formatted };
     });
